@@ -43,7 +43,7 @@ makeblastdb -dbtype nucl -in combi -out combi
 ```
 
 ####Return no hit fasta file 
-Finds all lines between the given fasta header and the next fasta header inclusive - it's a bit converluted as I haven't found a good way to remove the second header.
+Finds all lines between the given fasta header and the next fasta header inclusive - it's a bit converluted as I haven't found a good way to remove the second header (and as slow as a slow thing).
 ```shell
 blastn -db $AB/supp/combi -query $AB/MVX/assembled/201.fa -outfmt 7|grep -B2 "^# 0"|grep Query > X
 while read s; do
