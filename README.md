@@ -20,9 +20,8 @@ done
 ```
 ###Make Bowtie contaminants database
 ```shell
-bowtie2-build contaminants.fasta 
+bowtie2-build contaminants.fasta contaminants
 ```
-
 ###Align with bowtie to remove contaminants
 ```shell
 S=200
