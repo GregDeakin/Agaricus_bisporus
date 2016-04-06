@@ -18,12 +18,12 @@ do counter=$((counter+1))
     R1=$f
 done
 ```
-###Make Bowtie contaminants database
-```shell
-bowtie2-build contaminants.fasta contaminants
-```
+
 ###Align with bowtie to remove contaminants
 ```shell
+
+bowtie2-build contaminants.fasta contaminants
+
 S=200
 for f in $AB/MVX/joined/*
   do S=$((S+1))
@@ -55,4 +55,8 @@ while read s; do
 done <X>nohits.fa
 rm X
 ```
+
+###Virus snp discovery
+Finds virus snps
+
 
