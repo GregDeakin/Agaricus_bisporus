@@ -18,6 +18,11 @@ do counter=$((counter+1))
     R1=$f
 done
 ```
+###Make Bowtie contaminants database
+```shell
+bowtie2-build contaminants.fasta 
+```
+
 ###Align with bowtie to remove contaminants
 ```shell
 S=200
