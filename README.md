@@ -63,3 +63,6 @@ Finds virus snps
 bowtie2-build $AB/variants/138/138.txt 138
 
 ./bowtie.sh /home/groups/harrisonlab/project_files/rootstock_genetics/m27/conc/phix_filtered.1 /home/groups/harrisonlab/project_files/rootstock_genetics/m27/conc/phix_filtered.2 /home/groups/harrisonlab/project_files/rootstock_genetics/ref/v1/Md /home/groups/harrisonlab/project_files/rootstock_genetics/m27/analysis_v1/ m27_v1 250 500
+
+samtools mpileup -o piletest.vcf -v -t DPR -u -f 138.txt sorted.bam
+```
