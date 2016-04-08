@@ -82,7 +82,7 @@ do
 		y=$(grep -v ">" <<< $l|awk '{print length($0)}'); 
 		echo $x $y; 
 	else
-		x=$(grep -o C[0-9]* <<< $l|'); 
+		x=$(grep -o C[0-9]* <<< $l); 
 	fi
 	counter=$((counter+1))
 done
