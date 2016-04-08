@@ -66,4 +66,7 @@ bowtie2 -p 8 --no-unal -x 138 -U ../../MVX2/cleaned/201.cleaned.fq -S test.sam
 samtools view -S -b test.sam >test.bam
 samtools sort test.bam sorted
 samtools mpileup -o piletest.vcf -v -t DPR -u -f 138.txt sorted.bam
+
+grep -P "C1\t" piletest.vcf |grep INDEL -v|wc -l
+grep -P "C1\t" piletest.vcf |grep INDEL -v|grep ",<X>"|wc -l
 ```
