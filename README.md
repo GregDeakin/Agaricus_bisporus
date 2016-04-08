@@ -64,10 +64,16 @@ rm X
 Finds virus snps
 
 ```
+bowtie2-build $AB/variants/$f/$f.txt $f
+
+$AB/scripts/varcount.sh $AB/variants/irisha/irisha $AB/MVX1/cleaned/281.cleaned.fq
+```
+#####OLD
+```shell
 f=138
 cl=201
 
-bowtie2-build $AB/variants/$f/$f.txt $f
+
 bowtie2 -p 8 --no-unal -x $f -U $AB/MVX1/cleaned/$cl.cleaned.fq -S $f.sam
 samtools view -S -b $f.sam >$f.bam
 samtools sort $f.bam $f.sorted
