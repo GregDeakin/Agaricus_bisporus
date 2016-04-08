@@ -56,7 +56,7 @@ done <X>nohits.fa
 rm X
 ```
 
-###Virus snp discovery
+###Virus variant discovery
 Finds virus snps
 
 ```
@@ -67,13 +67,14 @@ bowtie2 -p 8 --no-unal -x $f -U ../../MVX2/cleaned/201.cleaned.fq -S $f.sam
 samtools view -S -b $f.sam >$f.bam
 samtools sort $f.bam $f.sorted
 samtools mpileup -o $f.pile.vcf -v -t DPR -u -f $f.txt $f.sorted.bam
+bcftools call -Ov -v -m $f.pile.vcf > $f.vars.vcf
 
-viruses=$( grep -P  ^[^#] $f.pile.vcf|awk -F"\t" '{print $1}'|sort|uniq )
+grep ^[^#] $f.vars.vcf|awk -F"\t" '{print $1"\t"$10}'|awk -F":" '{print $1}'|awk -F"/" '{print $1"\t"$2}' > $f.var.txt
 
+viruses=$(awk -F"\t" '{print $1}' <$f.var.txt|sort|uniq )
 for v in $viruses
 do
-    x=$( grep -P "$v\t" $f.pile.vcf |grep INDEL -v|wc -l )
-    y=$( grep -P "$v\t" $f.pile.vcf |grep INDEL -v|grep ",<X>"|wc -l )
-    echo $f $v $y $x
-done > $f.snp.txt
+    x=$( grep -P "$v\t" $f.var.txt |awk -F"\t" '{if ($2!=$3) {print $1}}'|wc -l )
+    echo $f $v $x
+done > $f.var_count.txt
 ```
