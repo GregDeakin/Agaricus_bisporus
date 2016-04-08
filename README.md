@@ -64,6 +64,7 @@ rm X
 Finds virus snps
 
 ```
+f=irisha
 bowtie2-build $AB/variants/$f/$f.txt $f
 
 $AB/scripts/varcount.sh $AB/variants/irisha/irisha $AB/MVX1/cleaned/281.cleaned.fq
