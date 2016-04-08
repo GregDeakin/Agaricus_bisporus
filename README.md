@@ -61,7 +61,9 @@ rm X
 ```
 
 ###Virus variant discovery
-Finds virus snps
+Finds virus variants
+Requires varcount.sh and submit varcount.sh. 
+Outputs the number of variants per input virus 
 
 ```
 f=irisha
