@@ -19,6 +19,6 @@ grep ^[^#] $REF.vars.vcf|awk -F"\t" '{print $1"\t"$10}'|awk -F":" '{print $1}'|a
 viruses=$(awk -F"\t" '{print $1}' <$REF.var.txt|sort|uniq )
 for v in $viruses
 do
-    x=$( grep -P "$v\t" $f.var.txt |awk -F"\t" '{if ($2!=$3) {print $1}}'|wc -l )
+    x=$( grep -P "$v\t" $REF.var.txt |awk -F"\t" '{if ($2!=$3) {print $1}}'|wc -l )
     echo $REF $v $x
 done > $REF.var_count.txt
