@@ -1,3 +1,9 @@
+#!/bin/bash
+
+#Assemble contigs using Bowtie
+#$ -S /bin/bash
+#$ -cwd
+#$ -l virtual_free=8G
 
 REF=$1
 SAMPLE=$2
