@@ -62,17 +62,18 @@ Finds virus snps
 ```
 bowtie2-build $AB/variants/138/138.txt 138
 
-bowtie2 -p 8 --no-unal -x 138 -U ../../MVX2/cleaned/201.cleaned.fq -S test.sam
-samtools view -S -b test.sam >test.bam
-samtools sort test.bam sorted
-samtools mpileup -o piletest.vcf -v -t DPR -u -f 138.txt sorted.bam
+f=138
+bowtie2 -p 8 --no-unal -x $f -U ../../MVX2/cleaned/201.cleaned.fq -S $f.sam
+samtools view -S -b $f.sam >$f.bam
+samtools sort $f.bam $f.sorted
+samtools mpileup -o $f.pile.vcf -v -t DPR -u -f $f.txt $f.sorted.bam
 
-viruses=$( grep -P  ^[^#] piletest.vcf|awk -F"\t" '{print $1}'|sort|uniq )
+viruses=$( grep -P  ^[^#] $f.pile.vcf|awk -F"\t" '{print $1}'|sort|uniq )
 
 for v in $viruses
 do
-    x=$( grep -P "$v\t" piletest.vcf |grep INDEL -v|wc -l )
-    y=$( grep -P "$v\t" piletest.vcf |grep INDEL -v|grep ",<X>"|wc -l )
-    echo $v $y $x
-done
+    x=$( grep -P "$v\t" $f.pile.vcf |grep INDEL -v|wc -l )
+    y=$( grep -P "$v\t" $f.pile.vcf |grep INDEL -v|grep ",<X>"|wc -l )
+    echo $f $v $y $x
+done > $f.snp.txt
 ```
