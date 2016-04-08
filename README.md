@@ -68,7 +68,7 @@ f=138
 cl=201
 
 bowtie2-build $AB/variants/$f/$f.txt $f
-bowtie2 -p 8 --no-unal -x $f -U $AB/MVX2/cleaned/$cl.cleaned.fq -S $f.sam
+bowtie2 -p 8 --no-unal -x $f -U $AB/MVX1/cleaned/$cl.cleaned.fq -S $f.sam
 samtools view -S -b $f.sam >$f.bam
 samtools sort $f.bam $f.sorted
 samtools mpileup -o $f.pile.vcf -v -t DPR -u -f $f.txt $f.sorted.bam
