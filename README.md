@@ -18,6 +18,10 @@ do counter=$((counter+1))
     R1=$f
 done
 ```
+Note some of the data had phed64 encoding ujoin requires phred33. I converted using sed e.g
+```shell
+sed -e '4~4y/@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghi/!"#$%&'\''()*+,-.\/0123456789:;<=>?@ABCDEFGHIJ/' $f_R1.fastq >$f_R1_33.fastq
+```
 
 ###Align with bowtie to remove contaminants
 ```shell
