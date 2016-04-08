@@ -67,6 +67,12 @@ samtools view -S -b test.sam >test.bam
 samtools sort test.bam sorted
 samtools mpileup -o piletest.vcf -v -t DPR -u -f 138.txt sorted.bam
 
-grep -P "C1\t" piletest.vcf |grep INDEL -v|wc -l
-grep -P "C1\t" piletest.vcf |grep INDEL -v|grep ",<X>"|wc -l
+viruses=$( grep -P  ^[^#] piletest.vcf|awk -F"\t" '{print $1}'|sort|uniq )
+
+for v in $viruses
+do
+    x=$( grep -P "$v\t" piletest.vcf |grep INDEL -v|wc -l )
+    y=$( grep -P "$v\t" piletest.vcf |grep INDEL -v|grep ",<X>"|wc -l )
+    echo $v $y $x
+done
 ```
