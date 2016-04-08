@@ -71,6 +71,22 @@ bowtie2-build $AB/variants/$f/$f.txt $f
 
 $AB/scripts/varcount.sh $AB/variants/irisha/irisha $AB/MVX1/cleaned/281.cleaned.fq
 ```
+
+Get the length of the original viral sequences
+```shell
+counter=1
+for l in $(cat $f.txt); 
+do
+	if (( $counter % 2 == 0 ))
+	then 
+		y=$(grep -v ">" <<< $l|awk '{print length($0)}'); 
+		echo $x $y; 
+	else
+		x=$(grep -o C[0-9]* <<< $l|'); 
+	fi
+	counter=$((counter+1))
+done
+```
 #####OLD
 ```shell
 f=138
