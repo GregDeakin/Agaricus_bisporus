@@ -65,6 +65,11 @@ Finds virus variants
 Requires varcount.sh and submit varcount.sh. 
 Outputs the number of variants per input virus 
 
+Build bowtie index of virus reference database for each sample
+```shell
+bowtie2-build iriasha.fa irisha
+```
+
 ```
 f=irisha
 bowtie2-build $AB/variants/$f/$f.txt $f
