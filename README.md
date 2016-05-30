@@ -70,6 +70,7 @@ Build bowtie index of virus reference database for each sample
 bowtie2-build iriasha.fa irisha
 ```
 
+I've updated varcounts to filter for a minimum of 6 aligned sequences (3 for both ref and alt), and alt must be at least 1% of total alignments.
 ```
 f=irisha
 bowtie2-build $AB/variants/$f/$f.txt $f
