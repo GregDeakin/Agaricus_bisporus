@@ -14,7 +14,9 @@ samtools sort $REF.bam $REF.sorted
 samtools mpileup -o $REF.pile.vcf -v -t DPR -u -f $REF.txt $REF.sorted.bam
 bcftools call -Ov -v -m $REF.pile.vcf > $REF.vars.vcf
 
-grep ^[^#] $REF.vars.vcf|awk -F"\t" '{print $1"\t"$10}'|awk -F":" '{print $1}'|awk -F"/" '{print $1"\t"$2}' > $REF.var.txt
+#grep ^[^#] $REF.vars.vcf|awk -F"\t" '{print $1"\t"$10}'|awk -F":" '{print $1}'|awk -F"/" '{print $1"\t"$2}' > $REF.var.txt
+grep ^[^#] $REF.vars.vcf|awk -F"\t" '{print $1"\t"$10}'|awk -F":" '{split($3,counts,",");if(counts[2]>2 && counts[1]>0 && counts[2]/counts[1]> 0.01) { print $1 }' > $REF.var.txt
+
 
 viruses=$(awk -F"\t" '{print $1}' <$REF.var.txt|sort|uniq )
 for v in $viruses
