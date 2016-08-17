@@ -3,7 +3,7 @@
 ## Version 5 microarrays
 
 ###	Data handling
-The data were imported into ‘R’ where normalisation, filtering and statistical analysis were undertaken using the Bioconductor Limma package and DESeq2. 
+The data were imported into ‘R’ where normalisation, filtering and statistical analysis were undertaken using the Bioconductor Limma package
 ####	Normalisation
 The data were background corrected using normal exponential convolution with an offset of 50. Between array normalisation was performed using the quantile method.
 ####	Data filtering
