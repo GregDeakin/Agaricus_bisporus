@@ -109,7 +109,7 @@ E.avg.v4 <- new("MAList", list(targets=RG_filt_v4$targets, genes=temp$Group.1,so
 rm(temp)
 
 #===============================================================================
-#	    Merge arrays
+#	    Merge arrays (needs a bit of work to add viruses and filtered from one only)
 #===============================================================================
 
 annotations <- read.csv("phd_genes.txt",header=TRUE)
@@ -122,7 +122,7 @@ genes_v5 <- inner_join(data_frame(ENA_ID=E.avg.v5$genes),annotations[,1:2])
 
 genes_to_keep <- inner_join(genes_v4,genes_v5)
 
-test<- cbind(E.avg.v4$genes,E.avg,v4$A)
+test<- cbind(E.avg.v4$genes,E.avg.v4$A)
 colnames(test)[1] <- "Name"
 test2 <- inner_join(test,genes_to_keep)
 test.v4 <- test2
