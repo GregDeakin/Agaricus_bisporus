@@ -89,13 +89,15 @@ RG_ess_v4 <- new("MAList", list(targets=RG_filt_v4$targets, genes=RG_filt_v4$gen
 # below for v4 microarray only
 RG_ess_v4$genes$SystematicName[grep("Agabi_varbisH97_2$",RG_ess_v4$genes$SystematicName)] <- RG_ess_v4$genes$ProbeName[grep("Agabi_varbisH97_2$",RG_ess_v4$genes$SystematicName)]
 
+
 ff <- function(X) {
-	while ( (max(X) - min(X)) > 2 ) 
-		if ((max(X)-median(X))>0.5) 
-			X[which.max(X)]<-median(X) 
-		else 
+	while ( (max(X) - min(X)) > 2 ) {
+		if ((max(X)-median(X))>0.5){			
+			X[which.max(X)]<-median(X)
+		}else{ 
 			X[which.min(X)] <- median(X)
-	
+		}
+	}
 	return(median(X))
 }
 
@@ -145,6 +147,7 @@ merged <- new("ExpressionSet", exprs = as.matrix(E.avg$A))
 merged_norm <- normalize.ExpressionSet.quantiles(merged)
 sample_info <- E.avg$targets
 colnames(sample_info)[1:2] <-c("Array.name", "Sample.name")
+sample_info$Batch <- c(rep("A",8),rep("B",16))			
 sampleNames(merged_norm) <- sample_info[, 1]
 
 merged_combat <- merged_norm
@@ -152,7 +155,34 @@ exprs(merged_combat) <- virtualArrayComBat(expression_xls = exprs(merged_combat)
 
 pData(merged_combat) <- as.data.frame(sample_info)
 merged_combat_norm <- normalize.ExpressionSet.quantiles(merged_combat)
-E.avg$t2 <- exprs(merged_combat_norm)
+E.avg$M <- exprs(merged_combat_norm)
 
+#===============================================================================
+#	    Plots
+#===============================================================================
 
+plotOrd(df,colData,dimx=1,dimy=1,design="condition")
+		
+#===============================================================================
+#	    Statistical Analysis
+#===============================================================================
+
+f <- factor(targets$Condition, levels = unique(targets$Condition))
+
+design <- model.matrix(~0 + f)
+
+colnames(design) <- levels(f)
+
+fit <- lmFit(E.avg$A, design)
+
+contrast.matrix <- makeContrasts(
+	"A2-(2*C2)+C1",
+	"A2-A1-C2+C1",
+	levels=design
+)
+
+fit2 <- contrasts.fit(fit, contrast.matrix)
+
+fit2 <- eBayes(fit2)
+			
 
