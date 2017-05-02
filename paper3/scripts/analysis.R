@@ -7,7 +7,6 @@ library(virtualArray)
 library(dplyr)
 library(affyPLM)
 
-
 #===============================================================================
 #       Load one colour Agilent data 
 #===============================================================================
@@ -138,7 +137,6 @@ test <- inner_join(test.v4,test.v5)
 
 E.avg <- new("MAList", list(targets=rbind(RG_ess_v4$targets,RG_ess_v5$targets), genes=test$JGI_ID,gi=test$ENA_ID,source=RG_ess_v4$source,  A=test[,c(2:9,12:27)]))
 
-
 #===============================================================================
 #      Normalisation
 #===============================================================================
@@ -161,28 +159,32 @@ E.avg$M <- exprs(merged_combat_norm)
 #	    Plots
 #===============================================================================
 
+# pca plot using metabarcoding plotOrd function
+colData <-sample_info[,2:3]
 plotOrd(df,colData,dimx=1,dimy=1,design="condition")
 		
 #===============================================================================
 #	    Statistical Analysis
 #===============================================================================
 
-f <- factor(targets$Condition, levels = unique(targets$Condition))
-
+colData$MVX <- c(rep("N",4),rep("Y",20))
+f <- factor(colData$MVX, levels = unique(colData$MVX))
 design <- model.matrix(~0 + f)
-
 colnames(design) <- levels(f)
-
-fit <- lmFit(E.avg$A, design)
-
-contrast.matrix <- makeContrasts(
-	"A2-(2*C2)+C1",
-	"A2-A1-C2+C1",
-	levels=design
-)
-
+fit <- lmFit(E.avg$M, design)
+contrast.matrix <- makeContrasts("N-Y",	levels=design)
 fit2 <- contrasts.fit(fit, contrast.matrix)
-
 fit2 <- eBayes(fit2)
 			
+#===============================================================================
+#	    Data analysis
+#===============================================================================
+
+mvx_effect <- compost <- topTable(fit2, adjust="BH", coef="N-Y", genelist=E.avg$genes, number=length(E.avg$genes))
+names(mvx_effect)[1] <- "JGI_ID"
+
+#mvx_effect <- compost <- topTable(fit2, adjust="BH", coef="(compost_mvx+C1+C2+A1+A2)-compost_control", genelist=E.avg$genes, number=length(E.avg$genes))
+
+mvx_effect <- inner_join(mvx_effect,annotations)
+
 
