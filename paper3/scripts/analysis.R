@@ -166,7 +166,9 @@ mypca <- prcomp(t(E.avg$M))
 mypca$percentVar <- mypca$sdev^2/sum(mypca$sdev^2)
 df <- t(data.frame(t(mypca$x)*mypca$percentVar))
 plotOrd(df,colData,dimx=1,dimy=2,design="Condition",xlabel="PC1",ylabel="PC2")
-		
+
+# ma plot using function below
+plot_ma(compost)		
 #===============================================================================
 #	    Statistical Analysis
 #===============================================================================
@@ -190,5 +192,62 @@ names(mvx_effect)[1] <- "JGI_ID"
 #mvx_effect <- compost <- topTable(fit2, adjust="BH", coef="(compost_mvx+C1+C2+A1+A2)-compost_control", genelist=E.avg$genes, number=length(E.avg$genes))
 
 mvx_effect <- inner_join(mvx_effect,annotations)
+
+#===============================================================================
+#	   Functions
+#===============================================================================
+
+cbbPalette <- c("#000000", "#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00", "#CC79A7")
+
+plot_ma <- function
+(
+	fitObj,
+	xlims=c(-6,6),
+	textsize=16,
+	legend=F,
+	crush=T
+)
+
+{
+	d <- fitObj[,c(2,3,6)]
+	colnames(d) <- c("log2FoldChange","baseMean","padj")
+	d$group<-1
+	d[d$padj<=0.05,4]<-2 
+	d[abs(d$log2FoldChange)>1,4]<-3 
+	d[(d$padj<=0.05)&(abs(d$log2FoldChange)>1),4]<-4
+	d$group<-as.factor(d$group)
+	d$shape<-16
+
+	if(crush){
+		d[d$log2FoldChange<xlims[1],5]<-25
+		d[d$log2FoldChange<xlims[1],2]<-xlims[1]
+		d[d$log2FoldChange>xlims[2],5]<-24
+		d[d$log2FoldChange>xlims[2],2]<-xlims[2]
+
+
+	}
+
+	g <- ggplot(data=d,aes(x=log2FoldChange,y=baseMean,colour=group,shape=shape))
+	g <- g + theme_bw()
+	g <- g + theme(panel.border = element_blank(), panel.grid.major = element_blank(), panel.grid.minor = element_blank())
+	if(!legend) {
+		g <- g+ theme(legend.position="none")
+	}
+	g <- g + theme(axis.line.x = element_line(size=0.3,colour = "black"),
+	     axis.line.y = element_line(size=0.3,colour = "black"),
+	     axis.text = element_text(colour = "black"),
+	     text=element_text(size=16)
+	)
+	g <- g + scale_shape_identity() 
+	g <- g + geom_point(size=3)
+	g <- g + scale_colour_manual(values=cbbPalette)
+	g <- g + xlab(expression("Log"[2]*" Fold Change"))
+	g <- g + ylab(expression("Log"[2]*" Mean Expression"))
+	g <- g + xlim(xlims)
+	g <- g + expand_limits(x = xlims[1], y = 0)
+	g <- g + coord_flip()
+	return(g)
+}
+
 
 
