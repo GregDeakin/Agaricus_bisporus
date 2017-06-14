@@ -161,7 +161,11 @@ E.avg$M <- exprs(merged_combat_norm)
 
 # pca plot using metabarcoding plotOrd function
 colData <-sample_info[,2:3]
-plotOrd(df,colData,dimx=1,dimy=1,design="condition")
+colnames(colData) <- c("Condition","Batch")
+mypca <- prcomp(t(E.avg$M))
+mypca$percentVar <- mypca$sdev^2/sum(mypca$sdev^2)
+df <- t(data.frame(t(mypca$x)*mypca$percentVar))
+plotOrd(df,colData,dimx=1,dimy=2,design="Condition",xlabel="PC1",ylabel="PC2")
 		
 #===============================================================================
 #	    Statistical Analysis
