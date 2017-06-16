@@ -156,42 +156,94 @@ merged_combat_norm <- normalize.ExpressionSet.quantiles(merged_combat)
 E.avg$M <- exprs(merged_combat_norm)
 
 #===============================================================================
+#	    Statistical Analysis
+#===============================================================================
+
+f <- factor(colData$Condition, levels = unique(colData$Condition))
+design <- model.matrix(~0 + f)
+colnames(design) <- levels(f)
+fit <- lmFit(E.avg$M, design)
+contrast.matrix <- makeContrasts(
+	"A-C",
+	"C1-C",
+	"C2-C",
+	"A1-C",
+	"A2-C",
+	"A1-C1",
+	"A2-C2",
+	"A-C1",
+	"A-C2",
+	"(C1+C2+A)/3-C",
+	levels=design
+)
+fit2 <- contrasts.fit(fit, contrast.matrix)
+fit2 <- eBayes(fit2)
+
+		
+#===============================================================================
+#	    Data analysis
+#===============================================================================
+
+mvx_effect <- compost <- topTable(fit2, adjust="BH", coef="A-C", genelist=E.avg$genes, number=length(E.avg$genes))
+names(mvx_effect)[1] <- "JGI_ID"
+
+day1_effect <- topTable(fit2, adjust="BH", coef="A1-C1", genelist=E.avg$genes, number=length(E.avg$genes))
+day2_effect <- topTable(fit2, adjust="BH", coef="A2-C2", genelist=E.avg$genes, number=length(E.avg$genes))
+
+A <- mvx_effect
+C1 <- topTable(fit2, adjust="BH", coef="C1-C", genelist=E.avg$genes, number=length(E.avg$genes))
+C2 <- topTable(fit2, adjust="BH", coef="C2-C", genelist=E.avg$genes, number=length(E.avg$genes))
+A1 <- topTable(fit2, adjust="BH", coef="A1-C", genelist=E.avg$genes, number=length(E.avg$genes))
+A2 <- topTable(fit2, adjust="BH", coef="A2-C", genelist=E.avg$genes, number=length(E.avg$genes))
+
+colnames(A)[1] <- "JGI_ID"
+colnames(C1)[1] <- "JGI_ID"
+colnames(C2)[1] <- "JGI_ID"
+colnames(A1)[1] <- "JGI_ID"
+colnames(A2)[1] <- "JGI_ID"
+
+mvx_effect_all <- topTable(fit2, adjust="BH", coef="(C1+C2+A)/3-C", genelist=E.avg$genes, number=length(E.avg$genes))
+dim(mvx_effect_all[mvx_effect_all$adj.P.Val<=0.05,]) 
+colnames(mvx_effect_all)[1] <- "JGI_ID"
+
+#mvx_effect <- compost <- topTable(fit2, adjust="BH", coef="(compost_mvx+C1+C2+A1+A2)-compost_control", genelist=E.avg$genes, number=length(E.avg$genes))
+
+mvx_effect_all <- inner_join(mvx_effect_all,annotations)
+
+#===============================================================================
 #	    Plots
 #===============================================================================
 
 # pca plot using metabarcoding plotOrd function
 colData <-sample_info[,2:3]
 colnames(colData) <- c("Condition","Batch")
+colData[colData$Condition=="compost_control",1] <- "C"
+colData[colData$Condition=="compost_mvx",1] <- "A"
+colData[colData$Batch=="A",2] <- "V4"
+colData[colData$Batch=="B",2] <- "V5"
+
 mypca <- prcomp(t(E.avg$M))
 mypca$percentVar <- mypca$sdev^2/sum(mypca$sdev^2)
 df <- t(data.frame(t(mypca$x)*mypca$percentVar))
 plotOrd(df,colData,dimx=1,dimy=2,design="Condition",xlabel="PC1",ylabel="PC2")
 
 # ma plot using function below
-plot_ma(compost)		
-#===============================================================================
-#	    Statistical Analysis
-#===============================================================================
+plot_ma(mvx_effect,xlim=c(-4,4))
+plot_ma(day1_effect,xlim=c(-4,4))
+plot_ma(day2_effect,xlim=c(-4,4))
+plot_ma(day2_effect,legend=T)
 
-colData$MVX <- c(rep("N",4),rep("Y",20))
-f <- factor(colData$MVX, levels = unique(colData$MVX))
-design <- model.matrix(~0 + f)
-colnames(design) <- levels(f)
-fit <- lmFit(E.avg$M, design)
-contrast.matrix <- makeContrasts("N-Y",	levels=design)
-fit2 <- contrasts.fit(fit, contrast.matrix)
-fit2 <- eBayes(fit2)
-			
-#===============================================================================
-#	    Data analysis
-#===============================================================================
 
-mvx_effect <- compost <- topTable(fit2, adjust="BH", coef="N-Y", genelist=E.avg$genes, number=length(E.avg$genes))
-names(mvx_effect)[1] <- "JGI_ID"
+anti<-read.table("anti.txt",sep="\t",header=T)
+anti[,1]<-as.factor(anti[,1])
 
-#mvx_effect <- compost <- topTable(fit2, adjust="BH", coef="(compost_mvx+C1+C2+A1+A2)-compost_control", genelist=E.avg$genes, number=length(E.avg$genes))
+anti<-left_join(anti,A[,c(1,2,6)])
+anti<-left_join(anti,C1[,c(1,2,6)],by="JGI_ID")
+anti<-left_join(anti,C2[,c(1,2,6)],by="JGI_ID")
+anti<-left_join(anti,A1[,c(1,2,6)],by="JGI_ID")
+anti<-left_join(anti,A2[,c(1,2,6)],by="JGI_ID")
 
-mvx_effect <- inner_join(mvx_effect,annotations)
+colnames(anti) <- c("JGI_ID","Description","FC_A","p_A","FC_C1","p_C1","FC_C2","p_C2","FC_A1","p_A1","FC_A2","p_A2")
 
 #===============================================================================
 #	   Functions
@@ -202,7 +254,7 @@ cbbPalette <- c("#000000", "#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2"
 plot_ma <- function
 (
 	fitObj,
-	xlims=c(-6,6),
+	xlim=c(-6,6),
 	textsize=16,
 	legend=F,
 	crush=T
@@ -219,12 +271,10 @@ plot_ma <- function
 	d$shape<-16
 
 	if(crush){
-		d[d$log2FoldChange<xlims[1],5]<-25
-		d[d$log2FoldChange<xlims[1],2]<-xlims[1]
-		d[d$log2FoldChange>xlims[2],5]<-24
-		d[d$log2FoldChange>xlims[2],2]<-xlims[2]
-
-
+		d[d$log2FoldChange<xlim[1],5]<-25
+		d[d$log2FoldChange<xlim[1],1]<-xlim[1]
+		d[d$log2FoldChange>xlim[2],5]<-24
+		d[d$log2FoldChange>xlim[2],1]<-xlim[2]
 	}
 
 	g <- ggplot(data=d,aes(x=log2FoldChange,y=baseMean,colour=group,shape=shape))
@@ -243,11 +293,8 @@ plot_ma <- function
 	g <- g + scale_colour_manual(values=cbbPalette)
 	g <- g + xlab(expression("Log"[2]*" Fold Change"))
 	g <- g + ylab(expression("Log"[2]*" Mean Expression"))
-	g <- g + xlim(xlims)
-	g <- g + expand_limits(x = xlims[1], y = 0)
+	g <- g + xlim(xlim)
+	g <- g + expand_limits(x = xlim[1], y = 5)
 	g <- g + coord_flip()
 	return(g)
 }
-
-
-
