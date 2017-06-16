@@ -243,7 +243,38 @@ anti<-left_join(anti,C2[,c(1,2,6)],by="JGI_ID")
 anti<-left_join(anti,A1[,c(1,2,6)],by="JGI_ID")
 anti<-left_join(anti,A2[,c(1,2,6)],by="JGI_ID")
 
-colnames(anti) <- c("JGI_ID","Description","FC_A","p_A","FC_C1","p_C1","FC_C2","p_C2","FC_A1","p_A1","FC_A2","p_A2")
+colnames(anti) <- c("JGI_ID","Description","MVX","p_A","C_Day1","p_C1","C_Day2","p_C2","T_Day1","p_A1","T_Day2","p_A2")
+test <- melt(anti[,c(2,3,9,11,5,7)])
+test2<- melt(anti[,c(2,4,10,12,6,8)])
+test$value<-2^(abs(test$value ))*abs(test$value )/test$value 
+colnames(test)[2]<-"Sample"
+#test$value<-test$value-min(test$value)  
+test$Description<-factor(test$Description)
+g <- ggplot(test,aes(x=Sample,y=Description,fill=value))
+g<- g+ geom_tile(colour = "white")
+#g <- g + geom_raster()
+g <- g + scale_fill_gradient2(mid="white", low = "steelblue", high = "red", na.value = "black")
+
+
+#g
+
+
+frames = test[test3$hl, c("Sample", "Description")]
+frames$Sample = as.integer(frames$Sample)
+frames$Description = as.integer(frames$Description)
+g<-g+geom_rect(data=frames, size=1, fill=NA, colour="yellow",aes(xmin=Sample - 0.5, xmax=Sample + 0.5, ymin=Description - 0.5, ymax=Description + 0.5))
+
+
+g <- ggplot(test3,aes(x=Sample,y=Description,fill=value.x,z=hl))
+g<- g+geom_rect(size=1,fill=NA,colour="yellow",aes(xmin=z*(Sample-0.5),xmax=z*(Sample+0.5),ymin=z*(Sample-0.5),ymax=z*(Sample+0.5)))
+
+
+
+geom_raster(aes(x=Var1, y=Var2, fill=value)) +
+     scale_fill_gradient2(low="blue", high="red", na.value="black", name="") +
+     geom_rect(data=frames, size=1, fill=NA, colour="black",
+       aes(xmin=Var1 - 0.5, xmax=Var1 + 0.5, ymin=Var2 - 0.5, ymax=Var2 + 0.5)) 
+
 
 #===============================================================================
 #	   Functions
