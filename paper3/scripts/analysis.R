@@ -202,6 +202,10 @@ colnames(C2)[1] <- "JGI_ID"
 colnames(A1)[1] <- "JGI_ID"
 colnames(A2)[1] <- "JGI_ID"
 
+con_mvx <- inner_join(A[,c(1:3,6)],inner_join(C1[,c(1:3,6)],inner_join(C2[,c(1:3,6)],inner_join(A1[,c(1:3,6)],A2[,c(1:3,6)],by="JGI_ID"),by="JGI_ID"),by="JGI_ID"),by="JGI_ID")
+con_mvx <- con_mvx[,c(1,2,4,5,7,8,10,11,13,14,16,3)]
+colnames(con_mvx) <- c("JGI_ID","FC_A","P_A","FC_C1","P_C1","FC_C2","P_C2","FC_A1","P_A1","FC_A2","P_A2","BaseMean")
+
 mvx_effect_all <- topTable(fit2, adjust="BH", coef="(C1+C2+A)/3-C", genelist=E.avg$genes, number=length(E.avg$genes))
 dim(mvx_effect_all[mvx_effect_all$adj.P.Val<=0.05,]) 
 colnames(mvx_effect_all)[1] <- "JGI_ID"
