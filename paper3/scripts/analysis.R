@@ -45,6 +45,10 @@ RG_v4 <- get_arrays(targets_v4)
 RG_norm_v5 <- backgroundCorrect(RG_v5, method="normexp", offset=50)
 RG_norm_v4 <- backgroundCorrect(RG_v4, method="normexp", offset=50)
 
+# need to work on whether this should be done now or only later...
+RG_norm_v4$G <- normalizeBetweenArrays(RG_norm_v4$G, method="quantile")
+RG_norm_v5$G <- normalizeBetweenArrays(RG_norm_v5$G, method="quantile")
+
 RG_norm_v5$G <- log2(RG_norm_v5$G)
 RG_norm_v4$G <- log2(RG_norm_v4$G)
 
@@ -159,6 +163,7 @@ E.avg$M <- exprs(merged_combat_norm)
 #	    Statistical Analysis
 #===============================================================================
 
+# combined
 f <- factor(colData$Condition, levels = unique(colData$Condition))
 design <- model.matrix(~0 + f)
 colnames(design) <- levels(f)
@@ -179,10 +184,44 @@ contrast.matrix <- makeContrasts(
 fit2 <- contrasts.fit(fit, contrast.matrix)
 fit2 <- eBayes(fit2)
 
-		
+# v4 only
+f <- factor(colData$Condition[1:8], levels = unique(colData$Condition[1:8]))
+design <- model.matrix(~0 + f)
+colnames(design) <- levels(f)
+fit <- lmFit(E.avg.v4$A, design)
+contrast.matrix <- makeContrasts(
+	"A-C",
+	levels=design
+)
+fit2 <- contrasts.fit(fit, contrast.matrix)
+fit2 <- eBayes(fit2)
+fit2.v4 <- fit2
+
+# v5 only
+f <- factor(colData$Condition[9:length(colData$Condition)], levels = unique(colData$Condition[9:length(colData$Condition)]))
+design <- model.matrix(~0 + f)
+colnames(design) <- levels(f)
+fit <- lmFit(E.avg.v5$A, design)
+contrast.matrix <- makeContrasts(
+	"A1-C1",
+	"A2-C2",
+	levels=design
+)
+fit2 <- contrasts.fit(fit, contrast.matrix)
+fit2 <- eBayes(fit2)
+fit2.v5 <- fit2
+
 #===============================================================================
 #	    Data analysis
 #===============================================================================
+
+mvx <- compost <- topTable(fit2.v4, adjust="BH", coef="A-C", genelist=E.avg.v4$genes, number=length(E.avg.v4$genes))
+day1 <- topTable(fit2.v5, adjust="BH", coef="A1-C1", genelist=E.avg.v5$genes, number=length(E.avg.v5$genes))
+day2 <- topTable(fit2.v5, adjust="BH", coef="A2-C2", genelist=E.avg.v5$genes, number=length(E.avg.v5$genes))
+
+mvx <- inner_join(mvx[,c(1:3,6)],annotations,by=c("ID"="Name"))
+day1 <- inner_join(day1[,c(1:3,6)],annotations,by=c("ID"="ENA_ID"))
+day2 <- inner_join(day2[,c(1:3,6)],annotations,by=c("ID"="ENA_ID"))
 
 mvx_effect <- compost <- topTable(fit2, adjust="BH", coef="A-C", genelist=E.avg$genes, number=length(E.avg$genes))
 names(mvx_effect)[1] <- "JGI_ID"
@@ -214,6 +253,51 @@ colnames(mvx_effect_all)[1] <- "JGI_ID"
 
 mvx_effect_all <- inner_join(mvx_effect_all,annotations)
 
+
+kogclass<-fread("kog_class",sep="\t")
+
+# apply(kogclass,1,function(str) nrow(day1[kogClass %like% str & adj.P.Val <= 0.05 & logFC > 0 ]))
+
+
+kog_nums <- sapply(seq(1,nrow(kogclass)),function(i) {
+		data.frame(all=	nrow(day1[kogClass %like% kogclass[i]]),
+		   day1_up=nrow(day1[kogClass %like% kogclass[i] & adj.P.Val <= 0.05 & logFC > 0 ]),
+		   day1_down=nrow(day1[kogClass %like% kogclass[i] & adj.P.Val <= 0.05 & logFC < 0 ]),
+		   day2_up=nrow(day2[kogClass %like% kogclass[i] & adj.P.Val <= 0.05 & logFC > 0 ]),
+		   day2_down=nrow(day2[kogClass %like% kogclass[i] & adj.P.Val <= 0.05 & logFC < 0 ])
+		)
+	}
+)
+
+day_1_2 <- data.table(inner_join(day1,day2[,c(1,2,4)],by="ID"))
+
+kog_nums_2 <- sapply(seq(1,nrow(kogclass)),function(i) {
+		data.frame(all=	nrow(day1[kogClass %like% kogclass[i]]),
+		   early_up=nrow(day_1_2[kogClass %like% kogclass[i] & adj.P.Val.x <= 0.05 & logFC.x > 0 & adj.P.Val.y > 0.05 ]),
+		   early_down=nrow(day_1_2[kogClass %like% kogclass[i] & adj.P.Val.x <= 0.05 & logFC.x < 0 & adj.P.Val.y > 0.05]),
+		   late_up=nrow(day_1_2[kogClass %like% kogclass[i] & adj.P.Val.y <= 0.05 & logFC.y > 0 & adj.P.Val.x > 0.05]),
+		   late_down=nrow(day_1_2[kogClass %like% kogclass[i] & adj.P.Val.y <= 0.05 & logFC.y < 0& adj.P.Val.x > 0.05 ]),
+		   long_up=nrow(day_1_2[kogClass %like% kogclass[i] & adj.P.Val.y <= 0.05 & logFC.y > 0 & adj.P.Val.x <= 0.05]),
+		   long_down=nrow(day_1_2[kogClass %like% kogclass[i] & adj.P.Val.y <= 0.05 & logFC.y < 0 & adj.P.Val.x <= 0.05])			   
+		)
+	}
+)
+
+
+colnames(kog_nums) <- t(kogclass)
+x<-t(apply(kog_nums,1,function(i) prop.table(as.numeric(i))))
+colnames(x) <- t(kogclass) 
+df <- melt(x, id = row.names)
+ggplot(df, aes(x = Var1, y = value, fill = Var2)) + geom_bar(stat = "identity",colour="white")+theme(legend.position="none")	   
+
+colnames(kog_nums_2) <- t(kogclass)
+df <- data.table(kog_nums_2,keep.rownames = TRUE)
+df<-melt(df,id="rn")
+df$value <- as.numeric(df$value)
+   
+ggplot(df, aes(x = rn, y = value, fill = variable)) + geom_bar(stat = "identity",colour="white")+theme(legend.position="none")
+	   
+	   
 #===============================================================================
 #	    Plots
 #===============================================================================
