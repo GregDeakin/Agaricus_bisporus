@@ -6,6 +6,8 @@ library(limma)
 library(virtualArray)
 library(dplyr)
 library(affyPLM)
+library(reshape2)
+library(ggplot2)
 
 #===============================================================================
 #       Load one colour Agilent data 
