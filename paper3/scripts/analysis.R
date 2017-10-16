@@ -8,6 +8,7 @@ library(dplyr)
 library(affyPLM)
 library(reshape2)
 library(ggplot2)
+library(gplot)
 
 #===============================================================================
 #       Load one colour Agilent data 
@@ -356,7 +357,31 @@ g
 g <- ggplot(test3,aes(x=Sample,y=Description,fill=value.x,z=hl))
 g<- g+geom_rect(size=1,fill=NA,colour="yellow",aes(xmin=z*(Sample-0.5),xmax=z*(Sample+0.5),ymin=z*(Sample-0.5),ymax=z*(Sample+0.5)))
 
+## virus plot
+viruses <- E.avg.v5$A[grep("^C\\d.*",E.avg.v5$genes,perl=T),]
+vnames <- read.table("viruses.txt",header=T,sep="\t")
+rownames(viruses) <- vnames$virus
+#colnames(viruses) <- paste(targets_mcb$Condition,seq(1,4),sep="_")
+   
+colnames(viruses) <- paste(sub("C","Control_",sub("A","Treated_",targets_mcb$Condition)),seq(1,4),sep="_")
+#test2 <- melt(as.matrix(viruses))
 
+test3 <- apply(viruses,2, scale,scale=F)
+test3 <- t(apply(viruses,1, scale,scale=F))
+colnames(test3) <- colnames(viruses)	   
+test2 <- melt(as.matrix(test3))
+test2$Var1 <- factor(test2$Var1, levels = as.factor(row.names(viruses)[ hclust(dist((viruses)))$order]))	   
+colnames(test2)[3] <- "Scale"
+
+pdf("virus_plot_2.pdf")	   
+g <- ggplot(test2,aes(x=Var2,y=Var1,fill=Scale))
+g<- g+ geom_tile(colour = "black")
+g <- g + scale_fill_gradient2(mid="orange", low = "red",high = "yellow", na.value = "black")
+g <- g + labs(x=NULL,y=NULL)
+g + labs(title="  |------Day1------|   |------Day2------|")+ theme(axis.text.x = element_text(angle = 45, hjust = 1),text = element_text(size =16),plot.title = element_text(size=16))
+dev.off()
+   
+	   
 
 geom_raster(aes(x=Var1, y=Var2, fill=value)) +
      scale_fill_gradient2(low="blue", high="red", na.value="black", name="") +
