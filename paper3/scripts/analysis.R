@@ -274,6 +274,7 @@ kog_nums <- sapply(seq(1,nrow(kogclass)),function(i) {
 
 day_1_2 <- data.table(inner_join(day1,day2[,c(1,2,4)],by="ID"))
 
+
 kog_nums_2 <- sapply(seq(1,nrow(kogclass)),function(i) {
 		data.frame(all=	nrow(day1[kogClass %like% kogclass[i]]),
 		   early_up=nrow(day_1_2[kogClass %like% kogclass[i] & adj.P.Val.x <= 0.05 & logFC.x > 0 & adj.P.Val.y > 0.05 ]),
@@ -287,11 +288,16 @@ kog_nums_2 <- sapply(seq(1,nrow(kogclass)),function(i) {
 )
 
 
+
 colnames(kog_nums) <- t(kogclass)
 x<-t(apply(kog_nums,1,function(i) prop.table(as.numeric(i))))
+## ignnore
+	  ))
+###
 colnames(x) <- t(kogclass) 
 df <- melt(x, id = row.names)
 ggplot(df, aes(x = Var1, y = value, fill = Var2)) + geom_bar(stat = "identity",colour="white")+theme(legend.position="none")	   
+
 
 colnames(kog_nums_2) <- t(kogclass)
 df <- data.table(kog_nums_2,keep.rownames = TRUE)
@@ -299,8 +305,17 @@ df<-melt(df,id="rn")
 df$value <- as.numeric(df$value)
    
 ggplot(df, aes(x = rn, y = value, fill = variable)) + geom_bar(stat = "identity",colour="white")+theme(legend.position="none")
-	   
-	   
+
+### Heirachical clustering
+gene_exprs <- E.avg.v5$A
+rownames(gene_exprs) = make.names(E.avg.v5$genes, unique=TRUE)
+#gene_exprs$genes <- E.avg.v5$genes
+colnames(gene_exprs) <- paste(sub("C","Control_",sub("A","Treated_",targets_mcb$Condition)),seq(1,4),sep="_")
+d <- dist(gene_exprs,method="euclidean")	  
+h <- hclust(d)
+gene_exprs$group <- cutree(h, k=100)
+gene_exprs$genes <- row.names(gene_exprs)
+gene_exprs <- left_join(gene_exprs,annotations,by=c("genes"="ENA_ID"))
 #===============================================================================
 #	    Plots
 #===============================================================================
