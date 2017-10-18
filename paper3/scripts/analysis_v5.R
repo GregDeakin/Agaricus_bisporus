@@ -141,7 +141,7 @@ annotations <- left_join(gene_names,annotations, by=c("JGI_ID"="Protein.ID"))
 genes <- inner_join(data_frame(ENA_ID=E.avg$genes),annotations[,1:2])
 
 #===============================================================================
-#	    Statistical Analysis
+#	    Statistical Model
 #===============================================================================
 
 # add contrast type to colData
@@ -154,95 +154,64 @@ design <- model.matrix(~colData$Day*colData$Condition)
 # add the design to the gene expression data
 fit <- lmFit(E.avg$A, design)
 
-# coef1 = day effect
-# coef2 = treatment effect
-
+# define the contrast of interest
 contrast.matrix <- cbind(
-	Intercept=c(4,0,0,0),
+	#Intercept=c(4,0,0,0),
 	Day_main_effect=c(0,4,0,0),
 	Treatment_main_effect=c(0,0,4,0),
-	Day1_Treatment_effect=c(0,0,-2,-2),
-	Day2_Treatment_effect=c(0,0,-2,2),
+	Day1_Treatment_effect=c(0,0,2,2),
+	Day2_Treatment_effect=c(0,0,2,-2),
+	Day_Treatment_effect=c(0,2,0,2),
+	Day_Control_effect=c(0,2,0,-2),
 	Interaction=c(0,0,0,4))
 
-# 
+# add contrast to fit
 fit2 <- contrasts.fit(fit, contrast.matrix)
 
 # fit the model to the data
 fit2 <- eBayes(fit2)
 
-fit3 <- eBayes(fit)
+# number of differentially expressed genes
+res <- (decideTests(fit2))
+summary(res)
+# day 1 treated and day 2 treated
+(sum(res[,3]&res[,4]) - sum((res[,3]&res[,4])*res[,3]))/2
+(sum(res[,3]&res[,4]) + sum((res[,3]&res[,4])*res[,3]))/2
+# day 1 treated but not day 2 treated
+(sum(res[,3]&!res[,4]) - sum((res[,3]&!res[,4])*res[,3]))/2
+(sum(res[,3]&!res[,4]) + sum((res[,3]&!res[,4])*res[,3]))/2
+# day 2 treated but not day 1 treated
+(sum(res[,4]&!res[,3]) - sum((res[,4]&!res[,3])*res[,4]))/2
+(sum(res[,4]&!res[,3]) + sum((res[,4]&!res[,3])*res[,4]))/2
 
-toptable(fit3,coef=2,adjust="BH", genelist=E.avg$genes)
+res[,8] <- (((res[,3]&res[,4]) - ((res[,3]&res[,4])*res[,3]))/2)*-1 +
+((res[,3]&res[,4]) + ((res[,3]&res[,4])*res[,3]))/2
 
-#f <- factor(colData$Condition, levels = unique(colData$Condition))
-#design <- model.matrix(~0 + f)
-#colnames(design) <- levels(f)
-
-
-
-# v5 only
-f <- factor(colData$Condition[1:length(colData$Condition)], levels = unique(colData$Condition[1:length(colData$Condition)]))
-design2 <- model.matrix(~0 + colData$group)
-colnames(design2) <- levels(colData$group)
-fit4 <- lmFit(E.avg$A, design2)
-contrast.matrix2 <- makeContrasts(
-	"Treated_1-Control_1",
-	"Treated_2-Control_2 ",
-	levels=design2
+results <- list(
+	Day_main_effect=topTable(fit2, adjust="BH", coef=1, genelist=E.avg$genes, number=length(E.avg$genes)),
+	Treatment_main_effect= topTable(fit2, adjust="BH", coef=2, genelist=E.avg$genes, number=length(E.avg$genes)),
+	Day1_Treatment_effect=topTable(fit2, adjust="BH", coef=3, genelist=E.avg$genes, number=length(E.avg$genes)),
+	Day2_Treatment_effect= topTable(fit2, adjust="BH", coef=4, genelist=E.avg$genes, number=length(E.avg$genes)),
+	Treatment_effect=topTable(fit2, adjust="BH", coef=5, genelist=E.avg$genes, number=length(E.avg$genes)),
+	Control_effect=topTable(fit2, adjust="BH", coef=6, genelist=E.avg$genes, number=length(E.avg$genes)),
+	Interaction=topTable(fit2, adjust="BH", coef=7, genelist=E.avg$genes, number=length(E.avg$genes))
 )
-fit4 <- contrasts.fit(fit4, contrast.matrix2)
-fit4 <- eBayes(fit4)
+
 
 #===============================================================================
 #	    Data analysis
 #===============================================================================
 
-mvx <- compost <- topTable(fit2.v4, adjust="BH", coef="A-C", genelist=E.avg$genes, number=length(E.avg.v4$genes))
-day1 <- topTable(fit2.v5, adjust="BH", coef="A1-C1", genelist=E.avg.v5$genes, number=length(E.avg.v5$genes))
-day2 <- topTable(fit2.v5, adjust="BH", coef="A2-C2", genelist=E.avg.v5$genes, number=length(E.avg.v5$genes))
+results_annotated <- lapply(results,function(res) left_join(res[,c(1:3,6)],annotations,by=c("ID"="ENA_ID")))
 
-mvx <- inner_join(mvx[,c(1:3,6)],annotations,by=c("ID"="Name"))
-day1 <- inner_join(day1[,c(1:3,6)],annotations,by=c("ID"="ENA_ID"))
-day2 <- inner_join(day2[,c(1:3,6)],annotations,by=c("ID"="ENA_ID"))
-
-mvx_effect <- compost <- topTable(fit2, adjust="BH", coef="A-C", genelist=E.avg$genes, number=length(E.avg$genes))
-names(mvx_effect)[1] <- "JGI_ID"
-
-day1_effect <- topTable(fit2, adjust="BH", coef="A1-C1", genelist=E.avg$genes, number=length(E.avg$genes))
-day2_effect <- topTable(fit2, adjust="BH", coef="A2-C2", genelist=E.avg$genes, number=length(E.avg$genes))
-
-A <- mvx_effect
-C1 <- topTable(fit2, adjust="BH", coef="C1-C", genelist=E.avg$genes, number=length(E.avg$genes))
-C2 <- topTable(fit2, adjust="BH", coef="C2-C", genelist=E.avg$genes, number=length(E.avg$genes))
-A1 <- topTable(fit2, adjust="BH", coef="A1-C", genelist=E.avg$genes, number=length(E.avg$genes))
-A2 <- topTable(fit2, adjust="BH", coef="A2-C", genelist=E.avg$genes, number=length(E.avg$genes))
-
-colnames(A)[1] <- "JGI_ID"
-colnames(C1)[1] <- "JGI_ID"
-colnames(C2)[1] <- "JGI_ID"
-colnames(A1)[1] <- "JGI_ID"
-colnames(A2)[1] <- "JGI_ID"
-
-con_mvx <- inner_join(A[,c(1:3,6)],inner_join(C1[,c(1:3,6)],inner_join(C2[,c(1:3,6)],inner_join(A1[,c(1:3,6)],A2[,c(1:3,6)],by="JGI_ID"),by="JGI_ID"),by="JGI_ID"),by="JGI_ID")
-con_mvx <- con_mvx[,c(1,2,4,5,7,8,10,11,13,14,16,3)]
-colnames(con_mvx) <- c("JGI_ID","FC_A","P_A","FC_C1","P_C1","FC_C2","P_C2","FC_A1","P_A1","FC_A2","P_A2","BaseMean")
-
-mvx_effect_all <- topTable(fit2, adjust="BH", coef="(C1+C2+A)/3-C", genelist=E.avg$genes, number=length(E.avg$genes))
-dim(mvx_effect_all[mvx_effect_all$adj.P.Val<=0.05,]) 
-colnames(mvx_effect_all)[1] <- "JGI_ID"
-
-#mvx_effect <- compost <- topTable(fit2, adjust="BH", coef="(compost_mvx+C1+C2+A1+A2)-compost_control", genelist=E.avg$genes, number=length(E.avg$genes))
-
-mvx_effect_all <- inner_join(mvx_effect_all,annotations)
-
+df <- Reduce(function(x, y) inner_join(x, y,by="ID"), results, accumulate=F)
+				  
 
 kogclass<-fread("kog_class",sep="\t")
 
 # apply(kogclass,1,function(str) nrow(day1[kogClass %like% str & adj.P.Val <= 0.05 & logFC > 0 ]))
 
-
-kog_nums <- sapply(seq(1,nrow(kogclass)),function(i) {
+kog_nums <- sapply(seq_along(kogclass),function(i) {
 		data.frame(all=	nrow(day1[kogClass %like% kogclass[i]]),
 		   day1_up=nrow(day1[kogClass %like% kogclass[i] & adj.P.Val <= 0.05 & logFC > 0 ]),
 		   day1_down=nrow(day1[kogClass %like% kogclass[i] & adj.P.Val <= 0.05 & logFC < 0 ]),
@@ -253,20 +222,6 @@ kog_nums <- sapply(seq(1,nrow(kogclass)),function(i) {
 )
 
 day_1_2 <- data.table(inner_join(day1,day2[,c(1,2,4)],by="ID"))
-
-
-kog_nums_2 <- sapply(seq(1,nrow(kogclass)),function(i) {
-		data.frame(all=	nrow(day1[kogClass %like% kogclass[i]]),
-		   early_up=nrow(day_1_2[kogClass %like% kogclass[i] & adj.P.Val.x <= 0.05 & logFC.x > 0 & adj.P.Val.y > 0.05 ]),
-		   early_down=nrow(day_1_2[kogClass %like% kogclass[i] & adj.P.Val.x <= 0.05 & logFC.x < 0 & adj.P.Val.y > 0.05]),
-		   late_up=nrow(day_1_2[kogClass %like% kogclass[i] & adj.P.Val.y <= 0.05 & logFC.y > 0 & adj.P.Val.x > 0.05]),
-		   late_down=nrow(day_1_2[kogClass %like% kogclass[i] & adj.P.Val.y <= 0.05 & logFC.y < 0& adj.P.Val.x > 0.05 ]),
-		   long_up=nrow(day_1_2[kogClass %like% kogclass[i] & adj.P.Val.y <= 0.05 & logFC.y > 0 & adj.P.Val.x <= 0.05]),
-		   long_down=nrow(day_1_2[kogClass %like% kogclass[i] & adj.P.Val.y <= 0.05 & logFC.y < 0 & adj.P.Val.x <= 0.05])			   
-		)
-	}
-)
-
 
 
 colnames(kog_nums) <- t(kogclass)
