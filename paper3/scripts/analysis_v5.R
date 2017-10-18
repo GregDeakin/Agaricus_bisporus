@@ -3,20 +3,24 @@
 #===============================================================================
 
 library(limma)
-library(virtualArray)
 library(dplyr)
-library(affyPLM)
 library(reshape2)
 library(ggplot2)
-library(gplot)
+#library(gplot)
 
 #===============================================================================
 #       Load one colour Agilent data 
 #===============================================================================
 
-targets_v5<- readTargets("targets_mcb.txt")
-targets_v4<- readTargets("targets_phd.txt")
+# load array location and description
+targets<- readTargets("targets_mcb.txt")
 
+# extract descriptions from targets file
+colData <- data.frame(Condition=as.factor(sub("[0-9]$","",targets$Condition)),Day=as.factor(sub(".","",targets$Condition)))
+levels(colData$Condition) <- c("Treated","Control")
+colData$group <- as.factor(paste(colData$Condition,colData$Day,sep="_"))
+
+# function to load one colour data
 get_arrays <- function(targets=targets,dpath="../data") {
 	RG <- read.maimages(
 		targets, 
@@ -42,31 +46,30 @@ get_arrays <- function(targets=targets,dpath="../data") {
 	return(RG)
 }
 
-RG_v5 <- get_arrays(targets_v5)
-RG_v4 <- get_arrays(targets_v4)
+# get the array data
+RG <- get_arrays(targets)
 
-RG_norm_v5 <- backgroundCorrect(RG_v5, method="normexp", offset=50)
-RG_norm_v4 <- backgroundCorrect(RG_v4, method="normexp", offset=50)
+# backgroung correct data
+RG_norm <- backgroundCorrect(RG, method="normexp", offset=50)
 
-# need to work on whether this should be done now or only later...
-RG_norm_v4$G <- normalizeBetweenArrays(RG_norm_v4$G, method="quantile")
-RG_norm_v5$G <- normalizeBetweenArrays(RG_norm_v5$G, method="quantile")
+# normalize data
+RG_norm$G <- normalizeBetweenArrays(RG_norm$G, method="quantile")
 
-RG_norm_v5$G <- log2(RG_norm_v5$G)
-RG_norm_v4$G <- log2(RG_norm_v4$G)
-
-#RG_ess <- new("MAList", list(targets=RG_norm$targets, genes=RG_norm$genes, source=RG_norm$source,  A=RG_norm$G))
+# convert expression values to log2 values
+RG_norm$G <- log2(RG_norm$G)
 
 #===============================================================================
 #	Data filtering
 #===============================================================================
 
+# filter function
 filter <- function(X) {
 	Y <- rowMeans(X)>0.5
 	Y <- Y==1
 	return(Y)
 }
 
+# create filter function for each array "set" 
 filter_run <- function(X,n=1) {
 	Y=0
 	if (n==1){
@@ -79,23 +82,20 @@ filter_run <- function(X,n=1) {
 
 #	Y <- filter(X[,1:4])+ filter(X[,5:8])+ filter(X[,9:12])+ filter(X[,13:16])+ filter(X[,17:20])+ filter(X[,21:24])+ filter(X[,25:28])+ filter(X[,29:32])+ filter(X[,33:36])+ filter(X[,37:40])
 
-RG_filt_v5 <- RG_norm_v5[filter_run(RG_norm_v5$other$gIsWellAboveBG)>0,]
-RG_filt_v4 <- RG_norm_v4[filter_run(RG_norm_v4$other$gIsWellAboveBG,2)>0,]
+# apply filter
+RG_filt <- RG_norm[filter_run(RG_norm$other$gIsWellAboveBG)>0,]
 
-RG_filt_v5 <- RG_filt_v5[RG_filt_v5$genes$ControlType==0,]
-RG_filt_v4 <- RG_filt_v4[RG_filt_v4$genes$ControlType==0,]
+# remove control genes
+RG_filt <- RG_filt[RG_filt$genes$ControlType==0,]
 
-RG_ess_v5 <- new("MAList", list(targets=RG_filt_v5$targets, genes=RG_filt_v5$genes, source=RG_filt_v5$source,  A=RG_filt_v5$G))
-RG_ess_v4 <- new("MAList", list(targets=RG_filt_v4$targets, genes=RG_filt_v4$genes, source=RG_filt_v4$source,  A=RG_filt_v4$G))
+# create new MA list object
+RG_ess <- new("MAList", list(targets=RG_filt$targets, genes=RG_filt$genes, source=RG_filt$source,  A=RG_filt$G))
 
 #===============================================================================
 #	    Technical Replicates
 #===============================================================================
 
-# below for v4 microarray only
-RG_ess_v4$genes$SystematicName[grep("Agabi_varbisH97_2$",RG_ess_v4$genes$SystematicName)] <- RG_ess_v4$genes$ProbeName[grep("Agabi_varbisH97_2$",RG_ess_v4$genes$SystematicName)]
-
-
+# filter replicates for median values (or set to median if too different)
 ff <- function(X) {
 	while ( (max(X) - min(X)) > 2 ) {
 		if ((max(X)-median(X))>0.5){			
@@ -107,118 +107,98 @@ ff <- function(X) {
 	return(median(X))
 }
 
-temp <- aggregate(RG_ess_v5$A,by=list(RG_ess_v5$genes$SystematicName),ff)
-E.avg.v5 <- new("MAList", list(targets=RG_filt_v5$targets, genes=temp$Group.1,source=RG_filt_v5$source,  A=temp[,2:17]))
-# for V5 only
-E.avg.v5$genes <- sub(".*_","",E.avg.v5$genes)
-			
-temp <- aggregate(RG_ess_v4$A,by=list(RG_ess_v4$genes$SystematicName),ff)
-E.avg.v4 <- new("MAList", list(targets=RG_filt_v4$targets, genes=temp$Group.1,source=RG_filt_v4$source,  A=temp[,2:9]))
+# aggregate by gene name and apply replicates filter
+temp <- aggregate(RG_ess$A,by=list(RG_ess$genes$SystematicName),ff)
+
+# create new MA list
+E.avg <- new("MAList", list(targets=RG_filt$targets, genes=temp$Group.1,source=RG_filt$source,  A=temp[,2:17]))
+
+# remove temp file
 rm(temp)
 
+# rename genes
+E.avg$genes <- sub(".*_","",E.avg$genes)
+
 #===============================================================================
-#	    Merge arrays (needs a bit of work to add viruses and filtered from one only)
+#	    Annotations
 #===============================================================================
 
+# read annotations file
 annotations <- read.csv("phd_genes.txt",header=TRUE)
+
+# remove duplicates
 annotations <- annotations[!duplicated(annotations$Protein.ID),]
+
+# get the gene names
 gene_names <- read.table("gene_names.txt",sep="\t",header=TRUE) 
-annotations <- merge(gene_names,annotations, by.x="JGI_ID",by.y="Protein.ID",all.x=TRUE)
 
-genes_v4 <- inner_join(data_frame(Name=E.avg.v4$genes),annotations[,c(1,6)])
-genes_v5 <- inner_join(data_frame(ENA_ID=E.avg.v5$genes),annotations[,1:2])
+# join genes to annotations
+annotations <- left_join(gene_names,annotations, by=c("JGI_ID"="Protein.ID"))
 
-genes_to_keep <- inner_join(genes_v4,genes_v5)
+# annotations <- merge(gene_names,annotations, by.x="JGI_ID",by.y="Protein.ID",all.x=TRUE)
 
-test<- cbind(E.avg.v4$genes,E.avg.v4$A)
-colnames(test)[1] <- "Name"
-test2 <- inner_join(test,genes_to_keep)
-test.v4 <- test2
-
-test<- cbind(E.avg.v5$genes,E.avg.v5$A)
-colnames(test)[1] <- "ENA_ID"
-test2 <- inner_join(test,genes_to_keep)
-test.v5 <- test2
-
-test <- inner_join(test.v4,test.v5)
-
-E.avg <- new("MAList", list(targets=rbind(RG_ess_v4$targets,RG_ess_v5$targets), genes=test$JGI_ID,gi=test$ENA_ID,source=RG_ess_v4$source,  A=test[,c(2:9,12:27)]))
-
-#===============================================================================
-#      Normalisation
-#===============================================================================
-
-merged <- new("ExpressionSet", exprs = as.matrix(E.avg$A))
-merged_norm <- normalize.ExpressionSet.quantiles(merged)
-sample_info <- E.avg$targets
-colnames(sample_info)[1:2] <-c("Array.name", "Sample.name")
-sample_info$Batch <- c(rep("A",8),rep("B",16))			
-sampleNames(merged_norm) <- sample_info[, 1]
-
-merged_combat <- merged_norm
-exprs(merged_combat) <- virtualArrayComBat(expression_xls = exprs(merged_combat),sample_info_file=sample_info)
-
-pData(merged_combat) <- as.data.frame(sample_info)
-merged_combat_norm <- normalize.ExpressionSet.quantiles(merged_combat)
-E.avg$M <- exprs(merged_combat_norm)
+# gene names
+genes <- inner_join(data_frame(ENA_ID=E.avg$genes),annotations[,1:2])
 
 #===============================================================================
 #	    Statistical Analysis
 #===============================================================================
 
-# combined
-f <- factor(colData$Condition, levels = unique(colData$Condition))
-design <- model.matrix(~0 + f)
-colnames(design) <- levels(f)
-fit <- lmFit(E.avg$M, design)
-contrast.matrix <- makeContrasts(
-	"A-C",
-	"C1-C",
-	"C2-C",
-	"A1-C",
-	"A2-C",
-	"A1-C1",
-	"A2-C2",
-	"A-C1",
-	"A-C2",
-	"(C1+C2+A)/3-C",
-	levels=design
-)
+# add contrast type to colData
+contrasts(colData$Condition) <- contr.sum(2)
+contrasts(colData$Day) <- contr.sum(2)
+
+# full 2x factor  design model 
+design <- model.matrix(~colData$Day*colData$Condition)
+
+# add the design to the gene expression data
+fit <- lmFit(E.avg$A, design)
+
+# coef1 = day effect
+# coef2 = treatment effect
+
+contrast.matrix <- cbind(
+	Intercept=c(4,0,0,0),
+	Day_main_effect=c(0,4,0,0),
+	Treatment_main_effect=c(0,0,4,0),
+	Day1_Treatment_effect=c(0,0,-2,-2),
+	Day2_Treatment_effect=c(0,0,-2,2),
+	Interaction=c(0,0,0,4))
+
+# 
 fit2 <- contrasts.fit(fit, contrast.matrix)
+
+# fit the model to the data
 fit2 <- eBayes(fit2)
 
-# v4 only
-f <- factor(colData$Condition[1:8], levels = unique(colData$Condition[1:8]))
-design <- model.matrix(~0 + f)
-colnames(design) <- levels(f)
-fit <- lmFit(E.avg.v4$A, design)
-contrast.matrix <- makeContrasts(
-	"A-C",
-	levels=design
-)
-fit2 <- contrasts.fit(fit, contrast.matrix)
-fit2 <- eBayes(fit2)
-fit2.v4 <- fit2
+fit3 <- eBayes(fit)
+
+toptable(fit3,coef=2,adjust="BH", genelist=E.avg$genes)
+
+#f <- factor(colData$Condition, levels = unique(colData$Condition))
+#design <- model.matrix(~0 + f)
+#colnames(design) <- levels(f)
+
+
 
 # v5 only
-f <- factor(colData$Condition[9:length(colData$Condition)], levels = unique(colData$Condition[9:length(colData$Condition)]))
-design <- model.matrix(~0 + f)
-colnames(design) <- levels(f)
-fit <- lmFit(E.avg.v5$A, design)
-contrast.matrix <- makeContrasts(
-	"A1-C1",
-	"A2-C2",
-	levels=design
+f <- factor(colData$Condition[1:length(colData$Condition)], levels = unique(colData$Condition[1:length(colData$Condition)]))
+design2 <- model.matrix(~0 + colData$group)
+colnames(design2) <- levels(colData$group)
+fit4 <- lmFit(E.avg$A, design2)
+contrast.matrix2 <- makeContrasts(
+	"Treated_1-Control_1",
+	"Treated_2-Control_2 ",
+	levels=design2
 )
-fit2 <- contrasts.fit(fit, contrast.matrix)
-fit2 <- eBayes(fit2)
-fit2.v5 <- fit2
+fit4 <- contrasts.fit(fit4, contrast.matrix2)
+fit4 <- eBayes(fit4)
 
 #===============================================================================
 #	    Data analysis
 #===============================================================================
 
-mvx <- compost <- topTable(fit2.v4, adjust="BH", coef="A-C", genelist=E.avg.v4$genes, number=length(E.avg.v4$genes))
+mvx <- compost <- topTable(fit2.v4, adjust="BH", coef="A-C", genelist=E.avg$genes, number=length(E.avg.v4$genes))
 day1 <- topTable(fit2.v5, adjust="BH", coef="A1-C1", genelist=E.avg.v5$genes, number=length(E.avg.v5$genes))
 day2 <- topTable(fit2.v5, adjust="BH", coef="A2-C2", genelist=E.avg.v5$genes, number=length(E.avg.v5$genes))
 
