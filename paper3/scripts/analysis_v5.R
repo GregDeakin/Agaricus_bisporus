@@ -3,7 +3,9 @@
 #===============================================================================
 
 library(limma)
+library(plyr)
 library(dplyr)
+library(data.table)
 library(reshape2)
 library(ggplot2)
 #library(gplot)
@@ -117,7 +119,7 @@ E.avg <- new("MAList", list(targets=RG_filt$targets, genes=temp$Group.1,source=R
 rm(temp)
 
 # rename genes
-E.avg$genes <- sub(".*_","",E.avg$genes)
+E.avg$genes <- sub("EKV.*_","",E.avg$genes)
 
 #===============================================================================
 #	    Annotations
@@ -172,20 +174,16 @@ fit2 <- contrasts.fit(fit, contrast.matrix)
 fit2 <- eBayes(fit2)
 
 # number of differentially expressed genes
-res <- (decideTests(fit2))
-summary(res)
-# day 1 treated and day 2 treated
-(sum(res[,3]&res[,4]) - sum((res[,3]&res[,4])*res[,3]))/2
-(sum(res[,3]&res[,4]) + sum((res[,3]&res[,4])*res[,3]))/2
-# day 1 treated but not day 2 treated
-(sum(res[,3]&!res[,4]) - sum((res[,3]&!res[,4])*res[,3]))/2
-(sum(res[,3]&!res[,4]) + sum((res[,3]&!res[,4])*res[,3]))/2
-# day 2 treated but not day 1 treated
-(sum(res[,4]&!res[,3]) - sum((res[,4]&!res[,3])*res[,4]))/2
-(sum(res[,4]&!res[,3]) + sum((res[,4]&!res[,3])*res[,4]))/2
+res <- data.table(decideTests(fit2))
+res$Day1_Treatment_AND_Day2_Treatment <- (res[,3]&res[,4])*res[,3]#((res[,3]&res[,4] ) - (res[,3]&res[,4] )*res[,3])/2 + ((res[,3]&res[,4] ) + (res[,3]&res[,4] )*res[,3])/2
+res$Day1_Treatment_NOT_Day2_Treatment <- (res[,3]&!res[,4])*res[,3] #((res[,3]&!res[,4]) - (res[,3]&!res[,4])*res[,3])/2 + ((res[,3]&!res[,4]) + (res[,3]&!res[,4])*res[,3])/2
+res$Day2_Treatment_NOT_Day1_Treatment <- (res[,4]&!res[,3])*res[,4] #(((res[,4]&!res[,3]) - (res[,4]&!res[,3]))*res[,4])/2 + ((res[,4]&!res[,3]) + (res[,4]&!res[,3])*res[,4])/2
+res$Treatment_NOT_Day <-(res[,2]&!res[,1])*res[,2]
 
-res[,8] <- (((res[,3]&res[,4]) - ((res[,3]&res[,4])*res[,3]))/2)*-1 +
-((res[,3]&res[,4]) + ((res[,3]&res[,4])*res[,3]))/2
+df <- data.frame(
+	"increased_expression"=apply(res*(res==1),2,sum),
+	"decreased_expression"=apply(res*(res==-1)*-1,2,sum),
+	"no_change"=mapply(sum,res*(res==1)*-1,res*(res==-1),res*(res==0)+1))
 
 results <- list(
 	Day_main_effect=topTable(fit2, adjust="BH", coef=1, genelist=E.avg$genes, number=length(E.avg$genes)),
@@ -202,13 +200,49 @@ results <- list(
 #	    Data analysis
 #===============================================================================
 
-results_annotated <- lapply(results,function(res) left_join(res[,c(1:3,6)],annotations,by=c("ID"="ENA_ID")))
+### Heirachical clustering
+gene_exprs <- E.avg$A
+rownames(gene_exprs) = E.avg$genes
+#rownames(gene_exprs) = make.names(E.avg$genes, unique=TRUE)
+#gene_exprs$genes <- E.avg.v5$genes
+colnames(gene_exprs) <- paste(sub("C","Control_",sub("A","Treated_",targets$Condition)),seq(1,4),sep="_")
+d <- dist(gene_exprs,method="euclidean")	  
+h <- hclust(d)
+gene_exprs$order <- h$order
+gene_exprs <- data.table(gene_exprs,keep.rownames = "ID")				    
+#cutree(h, k=100)
+#gene_exprs$genes <- row.names(gene_exprs)
+#gene_exprs <- left_join(gene_exprs,annotations,by=c("genes"="ENA_ID"))
+#gene_exprs <- gene_exprs[order(gene_exprs$order),]
+#########
 
-df <- Reduce(function(x, y) inner_join(x, y,by="ID"), results, accumulate=F)
-				  
+results_cut <- Reduce(function(...) 
+	inner_join(...,by="ID"),
+		      lapply(results,'[',c(1,2,6)
+			    ))
+
+		      
+
+results_annotated <- lapply(results,
+			    function(res) left_join(res[,c(1:3,6)],annotations,by=c("ID"="ENA_ID"))
+			    )
+
+
+
+dfe <- Reduce(function(...) 
+	inner_join(...,by="ID"),lapply(results,'[',c(1,2)
+				      )
+	      )
+colnames(dfe)[2:8] <- names(results)
+dfe <- inner_join(dfe,gene_exprs[,c(1,18)])
+dfe <-dfe[order(dfe$order),]
+###########
+
+
+
 
 kogclass<-fread("kog_class",sep="\t")
-
+	     
 # apply(kogclass,1,function(str) nrow(day1[kogClass %like% str & adj.P.Val <= 0.05 & logFC > 0 ]))
 
 kog_nums <- sapply(seq_along(kogclass),function(i) {
@@ -221,14 +255,16 @@ kog_nums <- sapply(seq_along(kogclass),function(i) {
 	}
 )
 
+	     
+	     
 day_1_2 <- data.table(inner_join(day1,day2[,c(1,2,4)],by="ID"))
-
 
 colnames(kog_nums) <- t(kogclass)
 x<-t(apply(kog_nums,1,function(i) prop.table(as.numeric(i))))
 ## ignnore
-	  ))
+	   ))}
 ###
+	     
 colnames(x) <- t(kogclass) 
 df <- melt(x, id = row.names)
 ggplot(df, aes(x = Var1, y = value, fill = Var2)) + geom_bar(stat = "identity",colour="white")+theme(legend.position="none")	   
@@ -239,18 +275,10 @@ df <- data.table(kog_nums_2,keep.rownames = TRUE)
 df<-melt(df,id="rn")
 df$value <- as.numeric(df$value)
    
+	     
 ggplot(df, aes(x = rn, y = value, fill = variable)) + geom_bar(stat = "identity",colour="white")+theme(legend.position="none")
 
-### Heirachical clustering
-gene_exprs <- E.avg.v5$A
-rownames(gene_exprs) = make.names(E.avg.v5$genes, unique=TRUE)
-#gene_exprs$genes <- E.avg.v5$genes
-colnames(gene_exprs) <- paste(sub("C","Control_",sub("A","Treated_",targets_mcb$Condition)),seq(1,4),sep="_")
-d <- dist(gene_exprs,method="euclidean")	  
-h <- hclust(d)
-gene_exprs$group <- cutree(h, k=100)
-gene_exprs$genes <- row.names(gene_exprs)
-gene_exprs <- left_join(gene_exprs,annotations,by=c("genes"="ENA_ID"))
+
 #===============================================================================
 #	    Plots
 #===============================================================================
@@ -263,6 +291,7 @@ colData[colData$Condition=="compost_mvx",1] <- "A"
 colData[colData$Batch=="A",2] <- "V4"
 colData[colData$Batch=="B",2] <- "V5"
 
+	     
 mypca <- prcomp(t(E.avg$M))
 mypca$percentVar <- mypca$sdev^2/sum(mypca$sdev^2)
 df <- t(data.frame(t(mypca$x)*mypca$percentVar))
@@ -274,9 +303,28 @@ plot_ma(day1_effect,xlim=c(-4,4))
 plot_ma(day2_effect,xlim=c(-4,4))
 plot_ma(day2_effect,legend=T)
 
+# heatmap of log2foldchange for each contrast	     
+test2 <- melt(dfe[,1:8])
+test2$ID <- factor(test2$ID, levels = as.factor(dfe$ID[ dfe$order]))
+pdf("test_plot_2.pdf")	   
+g <- ggplot(test2,aes(x=variable,y=ID,fill=value))
+#g<- g+ geom_tile(colour = "white")
+g <- g + geom_raster()
+g <- g + scale_fill_gradient2(mid="white", low = "red",high = "yellow", na.value = "black")
+g <- g + labs(x=NULL,y=NULL)
+g + theme(axis.text.x = element_text(angle = 45, hjust = 1),text = element_text(size =16),axis.text.y=element_blank())
+dev.off()
+# this is rubbish
 
+# anti-viral mechanisms
 anti<-read.table("anti.txt",sep="\t",header=T)
-anti[,1]<-as.factor(anti[,1])
+anti[,1]<-as.character(anti[,1])
+anti_merged <- left_join(anti[,1:2],annotations[,c(1,4)])
+
+
+
+
+
 
 anti<-left_join(anti,A[,c(1,2,6)])
 anti<-left_join(anti,C1[,c(1,2,6)],by="JGI_ID")
@@ -297,6 +345,7 @@ frames<-test2[test2$value<=0.05,1:2]
 frames$Sample = as.integer(frames$Sample)
 frames$Description = as.integer(frames$Description)
 
+	     
 g <- ggplot(test,aes(x=Sample,y=Description,fill=Fold_change))
 g<- g+ geom_tile(colour = "white")
 #g <- g + geom_raster()
@@ -304,12 +353,17 @@ g <- g + scale_fill_gradient2(mid="white", low = "steelblue", high = "red", na.v
 g<-g+geom_rect(data=frames, size=1, fill=NA, colour="black",aes(xmin=Sample - 0.5, xmax=Sample + 0.5, ymin=Description - 0.5, ymax=Description + 0.5))
 g
 
+	     
 g <- ggplot(test3,aes(x=Sample,y=Description,fill=value.x,z=hl))
 g<- g+geom_rect(size=1,fill=NA,colour="yellow",aes(xmin=z*(Sample-0.5),xmax=z*(Sample+0.5),ymin=z*(Sample-0.5),ymax=z*(Sample+0.5)))
 
+
 ## virus plot
-viruses <- E.avg.v5$A[grep("^C\\d.*",E.avg.v5$genes,perl=T),]
+# get list of viruses	     
+viruses <- E.avg$A[grep("^C\\d.*",E.avg$genes,perl=T),]
+# get new virus names
 vnames <- read.table("viruses.txt",header=T,sep="\t")
+# rename the viruses
 rownames(viruses) <- vnames$virus
 #colnames(viruses) <- paste(targets_mcb$Condition,seq(1,4),sep="_")
    
