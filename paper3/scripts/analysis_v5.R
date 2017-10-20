@@ -109,11 +109,13 @@ ff <- function(X) {
 	return(median(X))
 }
 
-# aggregate by gene name and apply replicates filter
-temp <- aggregate(RG_ess$A,by=list(RG_ess$genes$SystematicName),ff)
+# aggregate by gene name and apply replicates filter (updated to use data tables, it's much faster for this process)
+#temp <- aggregate(RG_ess$A,by=list(RG_ess$genes$SystematicName),ff)
+#t1 <- data.table(RG_ess$A,genes=RG_ess$genes$SystematicName)
+temp <- data.table(RG_ess$A,genes=RG_ess$genes$SystematicName)[,lapply(.SD, ff),by=genes]
 
 # create new MA list
-E.avg <- new("MAList", list(targets=RG_filt$targets, genes=temp$Group.1,source=RG_filt$source,  A=temp[,2:17]))
+E.avg <- new("MAList", list(targets=RG_filt$targets, genes=temp$genes,source=RG_filt$source,  A=temp[,2:17]))
 
 # remove temp file
 rm(temp)
@@ -159,8 +161,8 @@ fit <- lmFit(E.avg$A, design)
 # define the contrast of interest
 contrast.matrix <- cbind(
 	#Intercept=c(4,0,0,0),
-	Day_main_effect=c(0,4,0,0),
-	Treatment_main_effect=c(0,0,4,0),
+	Day_main_effect=c(0,2,0,0),
+	Treatment_main_effect=c(0,0,2,0),
 	Day1_Treatment_effect=c(0,0,2,2),
 	Day2_Treatment_effect=c(0,0,2,-2),
 	Day_Treatment_effect=c(0,2,0,2),
@@ -185,7 +187,7 @@ df <- data.frame(
 	"decreased_expression"=apply(res*(res==-1)*-1,2,sum),
 	"no_change"=mapply(sum,res*(res==1)*-1,res*(res==-1),res*(res==0)+1))
 
-results <- list(
+reslist <- list(
 	Day_main_effect=topTable(fit2, adjust="BH", coef=1, genelist=E.avg$genes, number=length(E.avg$genes)),
 	Treatment_main_effect= topTable(fit2, adjust="BH", coef=2, genelist=E.avg$genes, number=length(E.avg$genes)),
 	Day1_Treatment_effect=topTable(fit2, adjust="BH", coef=3, genelist=E.avg$genes, number=length(E.avg$genes)),
@@ -202,40 +204,31 @@ results <- list(
 
 ### Heirachical clustering
 gene_exprs <- E.avg$A
-rownames(gene_exprs) = E.avg$genes
-#rownames(gene_exprs) = make.names(E.avg$genes, unique=TRUE)
-#gene_exprs$genes <- E.avg.v5$genes
 colnames(gene_exprs) <- paste(sub("C","Control_",sub("A","Treated_",targets$Condition)),seq(1,4),sep="_")
 d <- dist(gene_exprs,method="euclidean")	  
 h <- hclust(d)
+gene_exprs$ID <- E.avg$genes
 gene_exprs$order <- h$order
-gene_exprs <- data.table(gene_exprs,keep.rownames = "ID")				    
-#cutree(h, k=100)
+gene_exprs$cuts <- cutree(h, k=100)
 #gene_exprs$genes <- row.names(gene_exprs)
 #gene_exprs <- left_join(gene_exprs,annotations,by=c("genes"="ENA_ID"))
 #gene_exprs <- gene_exprs[order(gene_exprs$order),]
 #########
 
-results_cut <- Reduce(function(...) 
+# put all the results (the interesting columns) in a single table
+results <- Reduce(function(...) 
 	inner_join(...,by="ID"),
-		      lapply(results,'[',c(1,2,6)
+		      lapply(reslist,'[',c(1,2,6)
 			    ))
+# give the columns some names
+colnames(results)[-1] <-  rbind(paste(names(reslist),"Log2FC",sep="_"),paste(names(reslist),"adjP",sep="_"))
+# add expression values (and hc order)
+results <- inner_join(results,gene_exprs)
+# add annotations
+results <- left_join(results,annotations,by=c("ID"="ENA_ID"))
+# write out the table
+write.table(results,"new_results.txt",sep="\t",row.names=F,quote=F,na="")
 
-		      
-
-results_annotated <- lapply(results,
-			    function(res) left_join(res[,c(1:3,6)],annotations,by=c("ID"="ENA_ID"))
-			    )
-
-
-
-dfe <- Reduce(function(...) 
-	inner_join(...,by="ID"),lapply(results,'[',c(1,2)
-				      )
-	      )
-colnames(dfe)[2:8] <- names(results)
-dfe <- inner_join(dfe,gene_exprs[,c(1,18)])
-dfe <-dfe[order(dfe$order),]
 ###########
 
 
@@ -303,16 +296,24 @@ plot_ma(day1_effect,xlim=c(-4,4))
 plot_ma(day2_effect,xlim=c(-4,4))
 plot_ma(day2_effect,legend=T)
 
-# heatmap of log2foldchange for each contrast	     
-test2 <- melt(dfe[,1:8])
-test2$ID <- factor(test2$ID, levels = as.factor(dfe$ID[ dfe$order]))
+# heatmap of log2foldchange for each contrast	
+
+dfe <- Reduce(function(...) 
+	inner_join(...,by="ID"),
+		      lapply(reslist,'[',c(1,2)
+			    ))
+dfe <- inner_join(dfe,gene_exprs[,c(17,19)])
+test2 <- melt(dfe)
+#test2$order <- as.factor(dfe$ID[dfe$cuts]))
+=2^abs(value)/(abs(value)/value)
 pdf("test_plot_2.pdf")	   
-g <- ggplot(test2,aes(x=variable,y=ID,fill=value))
+g <- ggplot(test2,aes(x=variable,y=cuts,fill=value))
 #g<- g+ geom_tile(colour = "white")
 g <- g + geom_raster()
-g <- g + scale_fill_gradient2(mid="white", low = "red",high = "yellow", na.value = "black")
+g <- g + scale_fill_gradient2(mid="yellow", low = "blue",high = "red", na.value = "black")
+g <- g + scale_fill_gradient2(mid="orange", low = "red",high = "yellow", na.value = "black")
 g <- g + labs(x=NULL,y=NULL)
-g + theme(axis.text.x = element_text(angle = 45, hjust = 1),text = element_text(size =16),axis.text.y=element_blank())
+g + theme(axis.text.x = element_text(angle = 45, hjust = 1),text = element_text(size =16),axis.text.y=element_blank(),axis.ticks.y=element_blank())
 dev.off()
 # this is rubbish
 
@@ -367,19 +368,21 @@ vnames <- read.table("viruses.txt",header=T,sep="\t")
 rownames(viruses) <- vnames$virus
 #colnames(viruses) <- paste(targets_mcb$Condition,seq(1,4),sep="_")
    
-colnames(viruses) <- paste(sub("C","Control_",sub("A","Treated_",targets_mcb$Condition)),seq(1,4),sep="_")
+colnames(viruses) <- paste(sub("C","Control_",sub("A","Treated_",targets$Condition)),seq(1,4),sep="_")
 
 test2 <- melt(as.matrix(viruses))
-
-test3 <- apply(viruses,2, scale,scale=F)
-test3 <- t(apply(viruses,1, scale,scale=F))
-colnames(test3) <- colnames(viruses)	   
-test2 <- melt(as.matrix(test3))
 test2$Var1 <- factor(test2$Var1, levels = as.factor(row.names(viruses)[ hclust(dist((viruses)))$order]))	   
-colnames(test2)[3] <- "Scale"
-test2$Scale <- scale(test2$Scale,scale=F)
+#colnames(test2)[3] <- "Scale"
+test2$Scale <- scale(test2[,3],scale=F)
 	   
-pdf("virus_plot_2.pdf")	   
+
+#test3 <- scale(viruses,scale=F)
+#apply(viruses,2, scale,scale=F)
+#test3 <- t(apply(viruses,1, scale,scale=F))
+#colnames(test3) <- colnames(viruses)	   
+#test2 <- melt(as.matrix(test3))
+
+pdf("virus_plot_3.pdf")	   
 g <- ggplot(test2,aes(x=Var2,y=Var1,fill=Scale))
 g<- g+ geom_tile(colour = "black")
 g <- g + scale_fill_gradient2(mid="orange", low = "red",high = "yellow", na.value = "black")
