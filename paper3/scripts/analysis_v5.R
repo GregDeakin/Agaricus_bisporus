@@ -296,6 +296,122 @@ plot_ma(day1_effect,xlim=c(-4,4))
 plot_ma(day2_effect,xlim=c(-4,4))
 plot_ma(day2_effect,legend=T)
 
+## virus plot
+# get list of viruses	     
+viruses <- E.avg$A[grep("^C\\d.*",E.avg$genes,perl=T),]
+# get new virus names
+vnames <- read.table("viruses.txt",header=T,sep="\t")
+# rename the viruses
+rownames(viruses) <- vnames$virus
+#colnames(viruses) <- paste(targets_mcb$Condition,seq(1,4),sep="_")
+# add sample names   
+colnames(viruses) <- paste(sub("C","Control_",sub("A","Treated_",targets$Condition)),seq(1,4),sep="_")
+
+# preprepared virus table
+viruses <- read.table("virus2.txt",header=T,sep="\t",row.names=1)
+
+
+# melt the data
+test2 <- melt(as.matrix(viruses))
+test2$Var1 <- factor(test2$Var1, levels = as.factor(row.names(viruses)[ hclust(dist((viruses)))$order]))	   
+#colnames(test2)[3] <- "Scale"
+# mean centre the data
+test2$Scale <- scale(test2[,3],scale=F)
+
+pdf("virus_plot_3.pdf")	   
+g <- ggplot(test2,aes(x=Var2,y=Var1,fill=Scale))
+g<- g+ geom_tile(colour = "black")
+g <- g + scale_fill_gradient2(mid="orange", low = "red",high = "yellow", na.value = "black")
+g <- g + labs(x=NULL,y=NULL)
+g + labs(title=" |------Day1------|   |------Day2------|")+ theme(axis.text.x = element_text(angle = 45, hjust = 1),text = element_text(size =16),plot.title = element_text(size=16))
+dev.off()
+
+
+# V2
+library(grid)
+library(gridExtra)
+g2 <- g + labs(title=" |------Day1------|   |------Day2------|")
+g2 <- g2 + theme(axis.text=element_text(colour = "grey20"),axis.text.x=element_blank(),axis.ticks.x=element_blank(),text = element_text(size =16),plot.title = element_text(size=16,colour="grey20"))
+g2 <- g2 + annotation_custom(textGrob("Treated",gp = gpar(fontsize = 15,col="grey20")),xmin=2.5,xmax=2.5,ymin=0,ymax=0)
+g2 <- g2 + annotation_custom(textGrob("Control",gp = gpar(fontsize = 15,col="grey20")),xmin=6.5,xmax=6.5,ymin=0,ymax=0)
+g2 <- g2 + annotation_custom(textGrob("Treated",gp = gpar(fontsize = 15,col="grey20")),xmin=10.5,xmax=10.5,ymin=0,ymax=0)
+g2 <- g2 + annotation_custom(textGrob("Control",gp = gpar(fontsize = 15,col="grey20")),xmin=14.5,xmax=14.5,ymin=0,ymax=0)
+g2 <- ggplot_gtable(ggplot_build(g2))
+g2$layout$clip[g2$layout$name == "panel"] <- "off"
+grid.arrange(g2)
+dev.off()
+
+# V3
+v3 <- sapply(seq(1,4),function(x) rowMeans(viruses[,(4*x-3):(4*x)]
+					  )
+	     )
+colnames(v3) <- c("T1","C1","T2","C2")
+test2 <- melt(as.matrix(v3))
+test2$Var1 <- factor(test2$Var1, levels = as.factor(row.names(viruses)[ hclust(dist((viruses)))$order]))	   
+test2$Scale <- scale(test2[,3],scale=F)
+pdf("virus_plot_3.pdf",width=4)	   
+g <- ggplot(test2,aes(x=Var2,y=Var1,fill=Scale))
+g<- g+ geom_tile(colour = "black")
+g <- g + scale_fill_gradient2(mid="orange", low = "red",high = "yellow", na.value = "black")
+g <- g + labs(x=NULL,y=NULL)
+g + theme(text = element_text(size =16),,legend.position = "bottom")
+dev.off()
+
+
+#test3 <- scale(viruses,scale=F)
+#apply(viruses,2, scale,scale=F)
+#test3 <- t(apply(viruses,1, scale,scale=F))
+#colnames(test3) <- colnames(viruses)	   
+#test2 <- melt(as.matrix(test3))
+
+# anti-viral heatplot
+# get genes
+av <- read.table("anti_genes.txt",header=T,sep="\t",)
+av$JGI_ID <- as.character(av$JGI_ID) # could do this in the read.table
+# need ena_id
+av <- inner_join(av,annotations[,c(1,4)])
+# merge with expression values
+av <- inner_join(av[,2:3],gene_exprs[,1:17],by=c("ENA_ID"="ID"))
+rownames(av) <- av$Description
+av <- av[,c(-1,-2)]
+
+av <- sapply(seq(1,4),function(x) rowMeans(av[,(4*x-3):(4*x)]
+					  )
+	     )
+test2 <- t(apply(av,1,scale,scale=F))
+colnames(test2) <-c("T1","C1","T2","C2")
+test2$label <- 
+test2 <- melt(as.matrix(test2))
+
+#test2$Scale <- scale(test2[,3],scale=F)
+test2$Scale <- test2$value
+
+
+#pdf("av_plot_1.pdf",width=4)	   
+g <- ggplot(test2,aes(x=Var2,y=Var1,fill=Scale))
+g<- g+ geom_tile(colour = "black") + geom_text(label=test2$label,size=2.8,hjust = -3,vjust=-0.1)
+g <- g + scale_fill_gradient2(mid="orange", low = "red",high = "yellow", na.value = "black")
+g <- g + labs(x=NULL,y=NULL)
+ggsave("av_plot_1.pdf",g + theme(text = element_text(size =16),legend.position = "bottom"),device=cairo_pdf,width=4)
+
+#g + theme(text = element_text(size =16),legend.position = "bottom")
+#dev.off()
+
+# V2
+#library(grid)
+#library(gridExtra)
+g2 <- g + labs(title=" |------Day1------|   |------Day2------|")
+g2 <- g2 + theme(axis.text=element_text(colour = "grey20"),axis.text.x=element_blank(),axis.ticks.x=element_blank(),text = element_text(size =16),plot.title = element_text(size=16,colour="grey20"))
+g2 <- g2 + annotation_custom(textGrob("Treated",gp = gpar(fontsize = 15,col="grey20")),xmin=2.5,xmax=2.5,ymin=0,ymax=0)
+g2 <- g2 + annotation_custom(textGrob("Control",gp = gpar(fontsize = 15,col="grey20")),xmin=6.5,xmax=6.5,ymin=0,ymax=0)
+g2 <- g2 + annotation_custom(textGrob("Treated",gp = gpar(fontsize = 15,col="grey20")),xmin=10.5,xmax=10.5,ymin=0,ymax=0)
+g2 <- g2 + annotation_custom(textGrob("Control",gp = gpar(fontsize = 15,col="grey20")),xmin=14.5,xmax=14.5,ymin=0,ymax=0)
+g2 <- ggplot_gtable(ggplot_build(g2))
+g2$layout$clip[g2$layout$name == "panel"] <- "off"
+grid.arrange(g2)
+dev.off()
+
+
 # heatmap of log2foldchange for each contrast	
 
 dfe <- Reduce(function(...) 
@@ -321,11 +437,6 @@ dev.off()
 anti<-read.table("anti.txt",sep="\t",header=T)
 anti[,1]<-as.character(anti[,1])
 anti_merged <- left_join(anti[,1:2],annotations[,c(1,4)])
-
-
-
-
-
 
 anti<-left_join(anti,A[,c(1,2,6)])
 anti<-left_join(anti,C1[,c(1,2,6)],by="JGI_ID")
@@ -359,37 +470,7 @@ g <- ggplot(test3,aes(x=Sample,y=Description,fill=value.x,z=hl))
 g<- g+geom_rect(size=1,fill=NA,colour="yellow",aes(xmin=z*(Sample-0.5),xmax=z*(Sample+0.5),ymin=z*(Sample-0.5),ymax=z*(Sample+0.5)))
 
 
-## virus plot
-# get list of viruses	     
-viruses <- E.avg$A[grep("^C\\d.*",E.avg$genes,perl=T),]
-# get new virus names
-vnames <- read.table("viruses.txt",header=T,sep="\t")
-# rename the viruses
-rownames(viruses) <- vnames$virus
-#colnames(viruses) <- paste(targets_mcb$Condition,seq(1,4),sep="_")
-   
-colnames(viruses) <- paste(sub("C","Control_",sub("A","Treated_",targets$Condition)),seq(1,4),sep="_")
 
-test2 <- melt(as.matrix(viruses))
-test2$Var1 <- factor(test2$Var1, levels = as.factor(row.names(viruses)[ hclust(dist((viruses)))$order]))	   
-#colnames(test2)[3] <- "Scale"
-test2$Scale <- scale(test2[,3],scale=F)
-	   
-
-#test3 <- scale(viruses,scale=F)
-#apply(viruses,2, scale,scale=F)
-#test3 <- t(apply(viruses,1, scale,scale=F))
-#colnames(test3) <- colnames(viruses)	   
-#test2 <- melt(as.matrix(test3))
-
-pdf("virus_plot_3.pdf")	   
-g <- ggplot(test2,aes(x=Var2,y=Var1,fill=Scale))
-g<- g+ geom_tile(colour = "black")
-g <- g + scale_fill_gradient2(mid="orange", low = "red",high = "yellow", na.value = "black")
-g <- g + labs(x=NULL,y=NULL)
-g + labs(title=" |------Day1------|   |------Day2------|")+ theme(axis.text.x = element_text(angle = 45, hjust = 1),text = element_text(size =16),plot.title = element_text(size=16))
-dev.off()
-   
 	   
 
 geom_raster(aes(x=Var1, y=Var2, fill=value)) +
