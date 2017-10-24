@@ -307,9 +307,6 @@ rownames(viruses) <- vnames$virus
 # add sample names   
 colnames(viruses) <- paste(sub("C","Control_",sub("A","Treated_",targets$Condition)),seq(1,4),sep="_")
 
-# preprepared virus table
-viruses <- read.table("virus2.txt",header=T,sep="\t",row.names=1)
-
 
 # melt the data
 test2 <- melt(as.matrix(viruses))
@@ -342,21 +339,44 @@ grid.arrange(g2)
 dev.off()
 
 # V3
-v3 <- sapply(seq(1,4),function(x) rowMeans(viruses[,(4*x-3):(4*x)]
-					  )
-	     )
+# preprepared virus table
+viruses <- read.table("virus2.txt",header=T,sep="\t",row.names=1)
+
+# get probalities
+padj <- read.table("virus_padj.txt",header=T,sep="\t")
+padj <- melt(padj)
+
+# get expression means
+v3 <- sapply(seq(1,4),function(x) rowMeans(viruses[,(4*x-3):(4*x)]))
 colnames(v3) <- c("T1","C1","T2","C2")
+
+# melt expression values
 test2 <- melt(as.matrix(v3))
-test2$Var1 <- factor(test2$Var1, levels = as.factor(row.names(viruses)[ hclust(dist((viruses)))$order]))	   
+
+# join p values to mean expression values
+test2 <- left_join(test2,padj,by=c("Var1"="ID","Var2"="variable"))
+test2$value.y[is.na(test2$value.y)] <- 1
+test2$label <- sapply(test2$value.y,function(x) if(as.numeric(x)<=0.05) {return("\u2020")}else{return("")})
+test2$Var1 <- factor(test2$Var1, levels = as.factor(row.names(viruses)[ hclust(dist((viruses)))$order]))
+# scale expression values
 test2$Scale <- scale(test2[,3],scale=F)
-pdf("virus_plot_3.pdf",width=4)	   
+		      
+# plot sprintf("%0.2f", round(Scale, digits = 1))
 g <- ggplot(test2,aes(x=Var2,y=Var1,fill=Scale))
-g<- g+ geom_tile(colour = "black")
+g<- g+ geom_tile(colour = "black") + geom_text(label=test2$label,size=2.8,hjust = -3,vjust=-0.1)
 g <- g + scale_fill_gradient2(mid="orange", low = "red",high = "yellow", na.value = "black")
 g <- g + labs(x=NULL,y=NULL)
-g + theme(text = element_text(size =16),,legend.position = "bottom")
-dev.off()
+g <- g + theme(text = element_text(size =16),legend.position = "bottom",legend.text = element_text(size = 10))
+ggsave("virus_plot_3.pdf",g,device=cairo_pdf,width=4)
+g_virus <- g
 
+#pdf("virus_plot_3.pdf",width=4)	   
+#g <- ggplot(test2,aes(x=Var2,y=Var1,fill=Scale))
+#g<- g+ geom_tile(colour = "black")
+#g <- g + scale_fill_gradient2(mid="orange", low = "red",high = "yellow", na.value = "black")
+#g <- g + labs(x=NULL,y=NULL)
+#g + theme(text = element_text(size =16),,legend.position = "bottom")
+#dev.off()
 
 #test3 <- scale(viruses,scale=F)
 #apply(viruses,2, scale,scale=F)
@@ -364,39 +384,46 @@ dev.off()
 #colnames(test3) <- colnames(viruses)	   
 #test2 <- melt(as.matrix(test3))
 
-# anti-viral heatplot
+### anti-viral heatplot
 # get genes
 av <- read.table("anti_genes.txt",header=T,sep="\t",)
 av$JGI_ID <- as.character(av$JGI_ID) # could do this in the read.table
-# need ena_id
+
+# get probalities
+padj <- av
+padj <- inner_join(padj,results[,c(36,7,9)])
+colnames(padj)[3:4] <- c("T1","T2")
+padj <- melt(padj[,c(2,3,4)])
+
+# get expression values
 av <- inner_join(av,annotations[,c(1,4)])
-# merge with expression values
 av <- inner_join(av[,2:3],gene_exprs[,1:17],by=c("ENA_ID"="ID"))
 rownames(av) <- av$Description
 av <- av[,c(-1,-2)]
-
-av <- sapply(seq(1,4),function(x) rowMeans(av[,(4*x-3):(4*x)]
-					  )
-	     )
+av <- sapply(seq(1,4),function(x) rowMeans(av[,(4*x-3):(4*x)] ))
+# melt and scale expression values
 test2 <- t(apply(av,1,scale,scale=F))
 colnames(test2) <-c("T1","C1","T2","C2")
-test2$label <- 
 test2 <- melt(as.matrix(test2))
-
 #test2$Scale <- scale(test2[,3],scale=F)
 test2$Scale <- test2$value
 
-
-#pdf("av_plot_1.pdf",width=4)	   
+# join p values to mean expression values
+test2 <- left_join(test2,padj,by=c("Var1"="Description","Var2"="variable"))
+test2$value.y[is.na(test2$value.y)] <- 1
+test2$label <- sapply(test2$value.y,function(x) if(as.numeric(x)<=0.05){return("\u2020")}else{return("")})
+#test2$Var2 <-  as.factor(test2$Var2)
+		      
+# plot  
 g <- ggplot(test2,aes(x=Var2,y=Var1,fill=Scale))
 g<- g+ geom_tile(colour = "black") + geom_text(label=test2$label,size=2.8,hjust = -3,vjust=-0.1)
 g <- g + scale_fill_gradient2(mid="orange", low = "red",high = "yellow", na.value = "black")
 g <- g + labs(x=NULL,y=NULL)
-ggsave("av_plot_1.pdf",g + theme(text = element_text(size =16),legend.position = "bottom"),device=cairo_pdf,width=4)
-
-#g + theme(text = element_text(size =16),legend.position = "bottom")
-#dev.off()
-
+g <- g + theme(text = element_text(size =16),legend.position = "bottom")
+ggsave("av_plot_1.pdf",g,device=cairo_pdf,width=4)
+g_anti <- g
+		      
+		      
 # V2
 #library(grid)
 #library(gridExtra)
@@ -411,7 +438,10 @@ g2$layout$clip[g2$layout$name == "panel"] <- "off"
 grid.arrange(g2)
 dev.off()
 
-
+############################################
+############################################
+		      
+		      
 # heatmap of log2foldchange for each contrast	
 
 dfe <- Reduce(function(...) 
@@ -433,7 +463,7 @@ g + theme(axis.text.x = element_text(angle = 45, hjust = 1),text = element_text(
 dev.off()
 # this is rubbish
 
-# anti-viral mechanisms
+# OLD anti-viral mechanisms
 anti<-read.table("anti.txt",sep="\t",header=T)
 anti[,1]<-as.character(anti[,1])
 anti_merged <- left_join(anti[,1:2],annotations[,c(1,4)])
@@ -463,7 +493,7 @@ g<- g+ geom_tile(colour = "white")
 #g <- g + geom_raster()
 g <- g + scale_fill_gradient2(mid="white", low = "steelblue", high = "red", na.value = "black")
 g<-g+geom_rect(data=frames, size=1, fill=NA, colour="black",aes(xmin=Sample - 0.5, xmax=Sample + 0.5, ymin=Description - 0.5, ymax=Description + 0.5))
-g
+
 
 	     
 g <- ggplot(test3,aes(x=Sample,y=Description,fill=value.x,z=hl))
