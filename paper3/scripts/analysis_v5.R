@@ -288,7 +288,8 @@ colData[colData$Batch=="B",2] <- "V5"
 mypca <- prcomp(t(E.avg$M))
 mypca$percentVar <- mypca$sdev^2/sum(mypca$sdev^2)
 df <- t(data.frame(t(mypca$x)*mypca$percentVar))
-plotOrd(df,colData,dimx=1,dimy=2,design="Condition",xlabel="PC1",ylabel="PC2")
+g <- plotOrd(df,colData,dimx=1,dimy=2,design="Condition",xlabel="PC1",ylabel="PC2") 
+g_pca <- g + theme_classic_thin(16) %+replace% theme(legend.position = "bottom",axis.text = element_text(colour="grey20"))
 
 ## ma plot using function below
 plot_ma(mvx_effect,xlim=c(-4,4))
@@ -407,14 +408,14 @@ g <- g + theme(text = element_text(size =16),legend.position = "bottom")
 ggsave("av_plot_1.pdf",g,device=cairo_pdf,width=4)
 g_anti <- g
 
-# combine Virus (v3) and anti_viral plots
-
+# combine PCA, Virus (v3) and anti_viral plots
 title.a <- textGrob(label = "a",x = unit(0, "lines"),y = unit(0, "lines"),hjust = -0.5, vjust = 0,gp = gpar(fontsize = 14,face="bold"))
 title.b <- textGrob(label = "b",x = unit(0, "lines"),y = unit(0, "lines"),hjust = -0.5, vjust = 0,gp = gpar(fontsize = 14,face="bold"))
-g3 <- arrangeGrob(g_virus, top = title.a)
-g4 <- arrangeGrob(g_anti, top = title.b)
-g <- grid.arrange(g3,g4,layout_matrix=rbind(c(1,2)))
-ggsave("Figure_4.pdf",g,device=cairo_pdf,width=8)
+g2 <- arrangeGrob(g_pca, top = title.a)
+g3 <- arrangeGrob(g_virus, top = title.b)
+g4 <- arrangeGrob(g_anti, top = title.c)
+g <- grid.arrange(g2,g3,g4,layout_matrix=rbind(c(1,1),c(2,3),c(2,3)))
+ggsave("Figure_4_v2.pdf",g,device=cairo_pdf,width=8,height=8)
 
 # V2
 #library(grid)
