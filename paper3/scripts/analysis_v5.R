@@ -276,7 +276,7 @@ ggplot(df, aes(x = rn, y = value, fill = variable)) + geom_bar(stat = "identity"
 #	    Plots
 #===============================================================================
 
-# pca plot using metabarcoding plotOrd function
+## pca plot using metabarcoding plotOrd function
 colData <-sample_info[,2:3]
 colnames(colData) <- c("Condition","Batch")
 colData[colData$Condition=="compost_control",1] <- "C"
@@ -290,7 +290,7 @@ mypca$percentVar <- mypca$sdev^2/sum(mypca$sdev^2)
 df <- t(data.frame(t(mypca$x)*mypca$percentVar))
 plotOrd(df,colData,dimx=1,dimy=2,design="Condition",xlabel="PC1",ylabel="PC2")
 
-# ma plot using function below
+## ma plot using function below
 plot_ma(mvx_effect,xlim=c(-4,4))
 plot_ma(day1_effect,xlim=c(-4,4))
 plot_ma(day2_effect,xlim=c(-4,4))
@@ -307,7 +307,6 @@ rownames(viruses) <- vnames$virus
 # add sample names   
 colnames(viruses) <- paste(sub("C","Control_",sub("A","Treated_",targets$Condition)),seq(1,4),sep="_")
 
-
 # melt the data
 test2 <- melt(as.matrix(viruses))
 test2$Var1 <- factor(test2$Var1, levels = as.factor(row.names(viruses)[ hclust(dist((viruses)))$order]))	   
@@ -322,7 +321,6 @@ g <- g + scale_fill_gradient2(mid="orange", low = "red",high = "yellow", na.valu
 g <- g + labs(x=NULL,y=NULL)
 g + labs(title=" |------Day1------|   |------Day2------|")+ theme(axis.text.x = element_text(angle = 45, hjust = 1),text = element_text(size =16),plot.title = element_text(size=16))
 dev.off()
-
 
 # V2
 library(grid)
@@ -370,20 +368,6 @@ g <- g + theme(text = element_text(size =16),legend.position = "bottom",legend.t
 ggsave("virus_plot_3.pdf",g,device=cairo_pdf,width=4)
 g_virus <- g
 
-#pdf("virus_plot_3.pdf",width=4)	   
-#g <- ggplot(test2,aes(x=Var2,y=Var1,fill=Scale))
-#g<- g+ geom_tile(colour = "black")
-#g <- g + scale_fill_gradient2(mid="orange", low = "red",high = "yellow", na.value = "black")
-#g <- g + labs(x=NULL,y=NULL)
-#g + theme(text = element_text(size =16),,legend.position = "bottom")
-#dev.off()
-
-#test3 <- scale(viruses,scale=F)
-#apply(viruses,2, scale,scale=F)
-#test3 <- t(apply(viruses,1, scale,scale=F))
-#colnames(test3) <- colnames(viruses)	   
-#test2 <- melt(as.matrix(test3))
-
 ### anti-viral heatplot
 # get genes
 av <- read.table("anti_genes.txt",header=T,sep="\t",)
@@ -422,8 +406,16 @@ g <- g + labs(x=NULL,y=NULL)
 g <- g + theme(text = element_text(size =16),legend.position = "bottom")
 ggsave("av_plot_1.pdf",g,device=cairo_pdf,width=4)
 g_anti <- g
-		      
-		      
+
+# combine Virus (v3) and anti_viral plots
+
+title.a <- textGrob(label = "a",x = unit(0, "lines"),y = unit(0, "lines"),hjust = -0.5, vjust = 0,gp = gpar(fontsize = 14,face="bold"))
+title.b <- textGrob(label = "b",x = unit(0, "lines"),y = unit(0, "lines"),hjust = -0.5, vjust = 0,gp = gpar(fontsize = 14,face="bold"))
+g3 <- arrangeGrob(g_virus, top = title.a)
+g4 <- arrangeGrob(g_anti, top = title.b)
+g <- grid.arrange(g3,g4,layout_matrix=rbind(c(1,2)))
+ggsave("Figure_4.pdf",g,device=cairo_pdf,width=8)
+
 # V2
 #library(grid)
 #library(gridExtra)
