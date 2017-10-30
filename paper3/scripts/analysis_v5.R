@@ -389,6 +389,41 @@ g4 <- arrangeGrob(g_anti, top = title.c)
 g <- grid.arrange(g2,g3,g4,layout_matrix=rbind(c(1,1),c(2,3),c(2,3)))
 ggsave("Figure_4_v2.pdf",g,device=cairo_pdf,width=8,height=8)
 
+#### Enzymes ####
+enzymes <- read.table("enzymes.txt",header=T,sep="\t",)
+enzymes$JGI_ID <- as.character(enzymes$Protein.ID)
+
+# get probalities
+padj <- enzymes
+padj <- inner_join(padj[,2:4],results[,c(36,7,9)])
+colnames(padj)[4:5] <- c("T1","T2")
+padj <- melt(padj[,c(1,2,4,5)])
+
+# get expression values
+enzymes <- inner_join(enzymes[,2:4],annotations[,c(1,4)])
+enzymes <- inner_join(enzymes,gene_exprs[,1:17],by=c("ENA_ID"="ID"))
+enzymes2 <- sapply(seq(1,4),function(x) rowMeans(enzymes[,(4*x+1):(4*x+4)] ))
+# melt and scale expression values
+test2 <- t(apply(enzymes2,1,scale,scale=F))
+colnames(test2) <-c("T1","C1","T2","C2")
+test2 <- cbind(enzymes[,1:3],test2)
+test2 <- melt(test2)
+
+test2$Scale <- test2$value
+test2$group_var <- paste(test2$name,test2$JGI_ID,sep="_")
+
+# join p values to mean expression values
+test2 <- left_join(test2,padj)
+test2$label <- sapply(test2$T1,function(x) if(as.numeric(x)<=0.05){return("\u2020")}else{return("")})
+#test2$Var2 <-  as.factor(test2$Var2)
+		      
+# plot  
+g <- ggplot(test2,aes(x=variable,y=name,fill=Scale))
+g<- g+ geom_tile(colour = "black") + geom_text(label=test2$label,size=2.8,hjust = -3,vjust=-0.1)
+g <- g + scale_fill_gradient2(mid="orange", low = "red",high = "yellow", na.value = "black")
+g <- g + labs(x=NULL,y=NULL)
+g <- g + theme(text = element_text(size =16),legend.position = "bottom")
+ggsave("enzyme_plot_1.pdf",g,device=cairo_pdf,width=4)
 
 ############################################
 ############################################
