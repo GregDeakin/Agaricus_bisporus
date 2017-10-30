@@ -229,54 +229,12 @@ results <- left_join(results,annotations,by=c("ID"="ENA_ID"))
 # write out the table
 write.table(results,"new_results.txt",sep="\t",row.names=F,quote=F,na="")
 
-###########
-
-
-
-
-kogclass<-fread("kog_class",sep="\t")
-	     
-# apply(kogclass,1,function(str) nrow(day1[kogClass %like% str & adj.P.Val <= 0.05 & logFC > 0 ]))
-
-kog_nums <- sapply(seq_along(kogclass),function(i) {
-		data.frame(all=	nrow(day1[kogClass %like% kogclass[i]]),
-		   day1_up=nrow(day1[kogClass %like% kogclass[i] & adj.P.Val <= 0.05 & logFC > 0 ]),
-		   day1_down=nrow(day1[kogClass %like% kogclass[i] & adj.P.Val <= 0.05 & logFC < 0 ]),
-		   day2_up=nrow(day2[kogClass %like% kogclass[i] & adj.P.Val <= 0.05 & logFC > 0 ]),
-		   day2_down=nrow(day2[kogClass %like% kogclass[i] & adj.P.Val <= 0.05 & logFC < 0 ])
-		)
-	}
-)
-
-	     
-	     
-day_1_2 <- data.table(inner_join(day1,day2[,c(1,2,4)],by="ID"))
-
-colnames(kog_nums) <- t(kogclass)
-x<-t(apply(kog_nums,1,function(i) prop.table(as.numeric(i))))
-## ignnore
-	   ))}
-###
-	     
-colnames(x) <- t(kogclass) 
-df <- melt(x, id = row.names)
-ggplot(df, aes(x = Var1, y = value, fill = Var2)) + geom_bar(stat = "identity",colour="white")+theme(legend.position="none")	   
-
-
-colnames(kog_nums_2) <- t(kogclass)
-df <- data.table(kog_nums_2,keep.rownames = TRUE)
-df<-melt(df,id="rn")
-df$value <- as.numeric(df$value)
-   
-	     
-ggplot(df, aes(x = rn, y = value, fill = variable)) + geom_bar(stat = "identity",colour="white")+theme(legend.position="none")
-
 
 #===============================================================================
 #	    Plots
 #===============================================================================
 
-## pca plot using metabarcoding plotOrd function
+##### pca plot using metabarcoding plotOrd function ####
 colData <-sample_info[,2:3]
 colnames(colData) <- c("Condition","Batch")
 colData[colData$Condition=="compost_control",1] <- "C"
@@ -291,13 +249,13 @@ df <- t(data.frame(t(mypca$x)*mypca$percentVar))
 g <- plotOrd(df,colData,dimx=1,dimy=2,design="Condition",xlabel="PC1",ylabel="PC2") 
 g_pca <- g + theme_classic_thin(16) %+replace% theme(legend.position = "bottom",axis.text = element_text(colour="grey20"))
 
-## ma plot using function below
+#### ma plot using function below ####
 plot_ma(mvx_effect,xlim=c(-4,4))
 plot_ma(day1_effect,xlim=c(-4,4))
 plot_ma(day2_effect,xlim=c(-4,4))
 plot_ma(day2_effect,legend=T)
 
-## virus plot
+#### virus plot ####
 # get list of viruses	     
 viruses <- E.avg$A[grep("^C\\d.*",E.avg$genes,perl=T),]
 # get new virus names
@@ -369,7 +327,7 @@ g <- g + theme(text = element_text(size =16),legend.position = "bottom",legend.t
 ggsave("virus_plot_3.pdf",g,device=cairo_pdf,width=4)
 g_virus <- g
 
-### anti-viral heatplot
+#### anti-viral heatplot ####
 # get genes
 av <- read.table("anti_genes.txt",header=T,sep="\t",)
 av$JGI_ID <- as.character(av$JGI_ID) # could do this in the read.table
@@ -408,15 +366,6 @@ g <- g + theme(text = element_text(size =16),legend.position = "bottom")
 ggsave("av_plot_1.pdf",g,device=cairo_pdf,width=4)
 g_anti <- g
 
-# combine PCA, Virus (v3) and anti_viral plots
-title.a <- textGrob(label = "a",x = unit(0, "lines"),y = unit(0, "lines"),hjust = -0.5, vjust = 0,gp = gpar(fontsize = 14,face="bold"))
-title.b <- textGrob(label = "b",x = unit(0, "lines"),y = unit(0, "lines"),hjust = -0.5, vjust = 0,gp = gpar(fontsize = 14,face="bold"))
-g2 <- arrangeGrob(g_pca, top = title.a)
-g3 <- arrangeGrob(g_virus, top = title.b)
-g4 <- arrangeGrob(g_anti, top = title.c)
-g <- grid.arrange(g2,g3,g4,layout_matrix=rbind(c(1,1),c(2,3),c(2,3)))
-ggsave("Figure_4_v2.pdf",g,device=cairo_pdf,width=8,height=8)
-
 # V2
 #library(grid)
 #library(gridExtra)
@@ -430,6 +379,16 @@ g2 <- ggplot_gtable(ggplot_build(g2))
 g2$layout$clip[g2$layout$name == "panel"] <- "off"
 grid.arrange(g2)
 dev.off()
+
+#### combine PCA, Virus (v3) and anti_viral plots ####
+title.a <- textGrob(label = "a",x = unit(0, "lines"),y = unit(0, "lines"),hjust = -0.5, vjust = 0,gp = gpar(fontsize = 14,face="bold"))
+title.b <- textGrob(label = "b",x = unit(0, "lines"),y = unit(0, "lines"),hjust = -0.5, vjust = 0,gp = gpar(fontsize = 14,face="bold"))
+g2 <- arrangeGrob(g_pca, top = title.a)
+g3 <- arrangeGrob(g_virus, top = title.b)
+g4 <- arrangeGrob(g_anti, top = title.c)
+g <- grid.arrange(g2,g3,g4,layout_matrix=rbind(c(1,1),c(2,3),c(2,3)))
+ggsave("Figure_4_v2.pdf",g,device=cairo_pdf,width=8,height=8)
+
 
 ############################################
 ############################################
@@ -555,3 +514,46 @@ plot_ma <- function
 	g <- g + coord_flip()
 	return(g)
 }
+
+
+#########################################
+#########################################
+		      
+kogclass<-fread("kog_class",sep="\t")
+	     
+# apply(kogclass,1,function(str) nrow(day1[kogClass %like% str & adj.P.Val <= 0.05 & logFC > 0 ]))
+
+kog_nums <- sapply(seq_along(kogclass),function(i) {
+		data.frame(all=	nrow(day1[kogClass %like% kogclass[i]]),
+		   day1_up=nrow(day1[kogClass %like% kogclass[i] & adj.P.Val <= 0.05 & logFC > 0 ]),
+		   day1_down=nrow(day1[kogClass %like% kogclass[i] & adj.P.Val <= 0.05 & logFC < 0 ]),
+		   day2_up=nrow(day2[kogClass %like% kogclass[i] & adj.P.Val <= 0.05 & logFC > 0 ]),
+		   day2_down=nrow(day2[kogClass %like% kogclass[i] & adj.P.Val <= 0.05 & logFC < 0 ])
+		)
+	}
+)
+
+	     
+	     
+day_1_2 <- data.table(inner_join(day1,day2[,c(1,2,4)],by="ID"))
+
+colnames(kog_nums) <- t(kogclass)
+x<-t(apply(kog_nums,1,function(i) prop.table(as.numeric(i))))
+## ignnore
+	   ))}
+###
+	     
+colnames(x) <- t(kogclass) 
+df <- melt(x, id = row.names)
+ggplot(df, aes(x = Var1, y = value, fill = Var2)) + geom_bar(stat = "identity",colour="white")+theme(legend.position="none")	   
+
+
+colnames(kog_nums_2) <- t(kogclass)
+df <- data.table(kog_nums_2,keep.rownames = TRUE)
+df<-melt(df,id="rn")
+df$value <- as.numeric(df$value)
+   
+	     
+ggplot(df, aes(x = rn, y = value, fill = variable)) + geom_bar(stat = "identity",colour="white")+theme(legend.position="none")
+
+		      
