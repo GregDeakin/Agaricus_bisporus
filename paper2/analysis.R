@@ -11,6 +11,9 @@ library(lmPerm)
 library(ape)
 library(gridExtra)
 library(grid)
+library(fpc)
+library("factoextra")
+librabry(cluster)
 
 load_all("~/pipelines/metabarcoding/scripts/myfunctions")
 
@@ -59,7 +62,6 @@ mylen <- nrow(t(DF)) - 1
 
 km_list <- lapply(seq(1,10),function(i) kmeans(t(DF),centers=i,iter.max=1000)
 
-
 #Plot the original dataset
 # plot(DF$x,DF$y,main="Original Dataset")
 
@@ -77,16 +79,16 @@ groups <- cutree(fit, k=5) # cut tree into 5 clusters
 rect.hclust(fit, k=5, border="red")
 
 #Silhouette analysis for determining the number of clusters
-library(fpc)
 asw <- sapply(seq(2,mylen ),function(i) pam(t(DF), i)$silinfo$avg.width)
 
 k.best <- which.max(asw)
 cat("silhouette-optimal number of clusters:", k.best, "\n")
 pdf("silhouette.pdf", height=6,width=8)
-plot(pam(d, 4))
+plot(pam(t(DF), 4))
 plot(pam(d, 5))
 dev.off()
 
+      
 # K-Means Cluster Analysis
 fit <- kmeans(t(DF),4)
 # get cluster means 
@@ -99,7 +101,6 @@ plot(mypca.cov$x[,2],mypca.cov$x[,3],col = fit$cluster, main="K-means Clustering
 
 
 # NEW ANALYSIS
-library("factoextra")
 res <- get_clust_tendency(t(DF), 17, graph = F)
 # Hopskin statistic
 res$hopkins_stat
@@ -128,26 +129,20 @@ mypca.cov <- prcomp(t(DF))
 
 mypca.cov$percentVar <- mypca.cov$sdev^2/sum(mypca.cov$sdev^2)
 
-
 set.seed(sum(utf8ToInt("Kerry Burton")))
-km <- mkeans(mkypca.cov$x,centers=4,iter.max=1000,nstart=25)
-colData$Cluster <- km$cluster
+km <- kmeans(t(DF),4,nstart=25)
+#km <- mkeans(mkypca.cov$x,centers=4,iter.max=1000,nstart=25)
+colData$Cluster <- as.factor(c(2,2,3,3,3,3,3,2,2,2,1,4,4,1,1,2,1,1))
 
 d <- t(data.frame(t(mypca.cov$x)*mypca.cov$percentVar))
 
 
-g1 <-  plotOrd(d,colData,design="Group",shape="Cluster",pointSize=1.5,axes=c(2,3),alpha=0.75,labels=T,sublabels=c(seq(1,18))[-16])+ stat_ellipse(type="norm",geom="polygon", level=0.95, alpha=0.2)
+g1 <-  plotOrd(d,colData,design="Group",shape="Cluster",cbPalette=T,pointSize=1.5,axes=c(2,3),alpha=0.75,labels=T,sublabels=c(seq(1,18))[-16])+ stat_ellipse(type="norm",geom="polygon", level=0.95, alpha=0.2)
 
-ggsave("FIg_1_B.pdf",g1))
-
-
-ggsave("Fig_Sx.pdf",plotOrd(d,colData,design="Group",shape="Cluster",pointSize=1.5,axes=c(1,2),alpha=0.75,labels=T,sublabels=c(seq(1,18))[c(-2,-15,-16)])+ stat_ellipse(type="norm",geom="polygon", level=0.85, alpha=0.2))
+ggsave("Figure_1_B.pdf",g1)
 
 
-#ggsave("corrected.pca.pdf",plotOrd(d,colData,design="group",pointSize=1.5,axes=c(1,2),alpha=0.75,cluster=0.95,centers=4))
-#ggsave("corrected.pca.2_3.pdf",plotOrd(d,colData,design="group",pointSize=1.5,axes=c(2,3),alpha=0.75,cluster=0.95,centers=4))
-#ggsave("corrected.grey.pca.2_3.pdf",plotOrd(d,colData,design="group",pointSize=1.5,axes=c(2,3),alpha=0.75,cluster=0.95,centers=4)+ scale_colour_grey())
-
+ggsave("Figure_S1_A.pdf",plotOrd(d,colData,design="Group",shape="Cluster",cbPalette=T,pointSize=1.5,axes=c(1,2),alpha=0.75,labels=T,sublabels=c(seq(1,18))[c(-2,-15,-16)])+ stat_ellipse(type="norm",geom="polygon", level=0.85, alpha=0.2))
 
 d <- mypca.cov$x
 
@@ -171,7 +166,6 @@ ggsave("cor_pca.pdf",plotOrd(d,colData,design="group",pointSize=1.5,axes=c(1,2),
 #===============================================================================
 
 cormat <- cor(DF)
-
 
 reorder_cormat <- function(cormat){
 # Use correlation between variables as distance
@@ -197,18 +191,16 @@ g2 <- g + theme_minimal(base_size=11) %+replace% theme(axis.text.x = element_tex
 axis.title.x = element_blank(),axis.title.y = element_blank(),panel.grid.major = element_blank(),panel.border = element_blank(),panel.background = element_blank(),axis.ticks = element_blank())
 ggsave("Fig_1A.pdf",g2)
 
-
 #===============================================================================
 #      Figure 1
 #===============================================================================
-
 
 g2_1 <- g2 + annotation_custom(grob=textGrob(label="A",hjust = 0, gp = gpar(cex = 1.5)),ymin=18,ymax=18,xmin=19,xmax=19)
 g1_1 <- ggplotGrob(g1+annotate("text",label=paste("B"), x=-20, y=3,size=6))
 
 g2_1 <- g2 + annotation_custom(grob=textGrob(label="A",hjust = 0, gp = gpar(cex = 1.5)),ymin=18,ymax=18,xmin=-4,xmax=-4)
 gt2 <- ggplot_gtable(ggplot_build(g2_1))
-gt2$layout$clip[gt$layout$name == "panel"] <- "off"
+gt2$layout$clip[gt2$layout$name == "panel"] <- "off"
 #grid.draw(gt2) 
 
 g1_1 <- g1 + annotation_custom(grob=textGrob(label="B",hjust = 0, gp = gpar(cex = 1.5)),ymin=3.5,ymax=3.5,xmin=-12.5,xmax=-12.5)
@@ -218,16 +210,14 @@ gt1$layout$clip[gt1$layout$name == "panel"] <- "off"
 
 layout_matrix <- cbind(c(1,1,2),c(1,1,2))
 
-ggsave("Figure_1.pdf",grid.arrange(gt2,gt1,layout_matrix=layout_matrix),width=8,height=9)
+ggsave("Figure_1_NEW.pdf",grid.arrange(gt2,gt1,layout_matrix=layout_matrix),width=8,height=9)
 
 #===============================================================================
 #      Colour 
 #===============================================================================
 
-
 colour <- melt(countData[,-1],id.vars=c("Experiment","Log(?E)","col_cor",))
 colour$Experiment <- as.factor(colour$Experiment)
-
 
 colData$col_prob_1 <- sapply(seq(4,21),function(i) cor.test(unlist(countData[Experiment=="1",3]),unlist(countData[Experiment=="1",..i]))[[3]])
 colData$col_prob_2 <- sapply(seq(4,21),function(i) cor.test(unlist(countData[Experiment=="2",3]),unlist(countData[Experiment=="2",..i]))[[3]])
@@ -249,3 +239,14 @@ g <- g + theme_classic_thin() %+replace% theme(
 g <- g + scale_colour_manual(values=c("black","orange"))
 
 ggsave("test.pdf",g + facet_wrap(~Virus, nrow = 3,ncol=2,scales="free_y"))
+
+#===============================================================================
+#      Figure S1 
+#===============================================================================
+			     
+sil <- silhouette(as.number(colData$Cluster), dist(scale(t(DF),scale=F)))
+rownames(sil) <- colData$Sample
+g <- fviz_silhouette(sil,label=T,palette=c("#000000", "#E69F00", "#56B4E9", "#009E73"))
+g + theme_classic_thin(base_size=16) %+replace% 
+	theme(axis.text.x = element_text(angle = 90, vjust = 0.5,hjust = 1),
+	axis.ticks=element_blank()) + scale_y_continuous(expand = c(0, 0), limits = c(-0,0.75))
