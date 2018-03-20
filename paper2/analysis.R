@@ -141,9 +141,6 @@ g1 <-  plotOrd(d,colData,design="Group",shape="Cluster",cbPalette=T,pointSize=1.
 
 ggsave("Figure_1_B.pdf",g1)
 
-
-ggsave("Figure_S1_A.pdf",plotOrd(d,colData,design="Group",shape="Cluster",cbPalette=T,pointSize=1.5,axes=c(1,2),alpha=0.75,labels=T,sublabels=c(seq(1,18))[c(-2,-15,-16)])+ stat_ellipse(type="norm",geom="polygon", level=0.85, alpha=0.2))
-
 d <- mypca.cov$x
 
 ggsave("pca.pdf",plotOrd(d,colData,design="group",pointSize=1.5,axes=c(1,2),alpha=0.75))  + stat_ellipse(geom="polygon", level=cluster, alpha=0.2)
@@ -213,40 +210,53 @@ layout_matrix <- cbind(c(1,1,2),c(1,1,2))
 ggsave("Figure_1_NEW.pdf",grid.arrange(gt2,gt1,layout_matrix=layout_matrix),width=8,height=9)
 
 #===============================================================================
-#      Colour 
+#      Figure 2 
 #===============================================================================
 
-colour <- melt(countData[,-1],id.vars=c("Experiment","Log(?E)","col_cor",))
+colour <- melt(countData[,-1],id.vars=c("Experiment","Log(?E)"))#,"col_cor",))
 colour$Experiment <- as.factor(colour$Experiment)
-
+colnames(colour) <- c("Experiment", "Log_dE", "Virus","dCT")
+       
 colData$col_prob_1 <- sapply(seq(4,21),function(i) cor.test(unlist(countData[Experiment=="1",3]),unlist(countData[Experiment=="1",..i]))[[3]])
 colData$col_prob_2 <- sapply(seq(4,21),function(i) cor.test(unlist(countData[Experiment=="2",3]),unlist(countData[Experiment=="2",..i]))[[3]])
 
-col_small <- colour[colour$Virus%in%rownames(colData[colData$col_prob_2<=0.05,]),]
-
-reg <- lm(dCT~Log_dE,data=col_small)
-coeff=coefficients(reg)
-eq = paste0("y = ", round(coeff[2],1), "*x + ", round(coeff[1],1))
-
+col_small <- colour[colour$Virus%in%colData[colData$col_prob_2<=0.05,Sample],]
+col_small$dCT <- 40-col_small$dCT
 
 g <- ggplot(data=col_small,aes(x=dCT,y=Log_dE,colour=Experiment))
 #g <- g + coord_fixed(ratio = 1, , ylim = NULL, expand = TRUE)
-g <- g + geom_point(size=2,na.rm = TRUE)
+g <- g + geom_point(size=2,na.rm = TRUE)+ scale_colour_manual(values=c("black","orange"))
+g <- g + xlab(expression(40 - Delta*"Ct"))
+g <- g + ylab(expression(Delta*"E*"))
 g <- g + theme_classic_thin() %+replace% theme(
 		panel.border = element_rect(colour = "black", fill=NA, size=0.5),
 		axis.text.x = element_text(angle = -90, vjust = 0.5,hjust = 0)
 	)
-g <- g + scale_colour_manual(values=c("black","orange"))
-
+g <- g + stat_smooth(method="lm", se=FALSE)
+#g <- g + annotate("text",colour="black",x=10,y=1.3,label=colData$col_prob_1)
+g <- g + facet_wrap(~Virus, nrow = 3,ncol=2,scales="free_y")			     
+dat <- data.frame(x = rep(10, 6), y = rep(1.3, 6), 
+		  Virus=colData$Sample[levels(colour$Virus)%in%colData[colData$col_prob_2<=0.05,Sample]],
+		  labs=round(colData$col_prob_1[levels(colour$Virus)%in%colData[colData$col_prob_2<=0.05,Sample]],3),
+		  labs2=rep(0.001,6))				     
+ 
+g + geom_text(aes(x, y, label=labs, group=NULL),data=dat,inherit.aes=F) + geom_text(aes(x, y-0.1, label=labs2, group=NULL),data=dat,inherit.aes=F,colour="orange")
+			     
+ g + geom_text(data=colData,aes(label=col_prob_1),inherit.aes=F,x=10,y=1.3)			     
 ggsave("test.pdf",g + facet_wrap(~Virus, nrow = 3,ncol=2,scales="free_y"))
 
 #===============================================================================
 #      Figure S1 
 #===============================================================================
+ggsave("Figure_S1_A.pdf",plotOrd(d,colData,design="Group",shape="Cluster",cbPalette=T,pointSize=1.5,axes=c(1,2),alpha=0.75,labels=T,sublabels=c(seq(1,18))[c(-2,-15,-16)])+ stat_ellipse(type="norm",geom="polygon", level=0.85, alpha=0.2))
+
+ggsave("Figure_S1_B.pdf",plot(fit))
 			     
 sil <- silhouette(as.number(colData$Cluster), dist(scale(t(DF),scale=F)))
 rownames(sil) <- colData$Sample
 g <- fviz_silhouette(sil,label=T,palette=c("#000000", "#E69F00", "#56B4E9", "#009E73"))
-g + theme_classic_thin(base_size=16) %+replace% 
+g <- g + theme_classic_thin(base_size=16) %+replace% 
 	theme(axis.text.x = element_text(angle = 90, vjust = 0.5,hjust = 1),
 	axis.ticks=element_blank()) + scale_y_continuous(expand = c(0, 0), limits = c(-0,0.75))
+
+ggsave("Figure_S1_C.pdf",g)
