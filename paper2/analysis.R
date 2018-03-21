@@ -213,37 +213,65 @@ ggsave("Figure_1_NEW.pdf",grid.arrange(gt2,gt1,layout_matrix=layout_matrix),widt
 #      Figure 2 
 #===============================================================================
 
-colour <- melt(countData[,-1],id.vars=c("Experiment","Log(?E)"))#,"col_cor",))
+# melt the imported data
+colour <- melt(countData[,-1],id.vars=c("Experiment","Log(?E)"))))
+
+# convert experiment from a numeric to a factor
 colour$Experiment <- as.factor(colour$Experiment)
+
+# add colnames
 colnames(colour) <- c("Experiment", "Log_dE", "Virus","dCT")
-       
+
+# calculate correlation probablities for both experiments      
 colData$col_prob_1 <- sapply(seq(4,21),function(i) cor.test(unlist(countData[Experiment=="1",3]),unlist(countData[Experiment=="1",..i]))[[3]])
 colData$col_prob_2 <- sapply(seq(4,21),function(i) cor.test(unlist(countData[Experiment=="2",3]),unlist(countData[Experiment=="2",..i]))[[3]])
 
+
+# subset colour based on significant correlation
 col_small <- colour[colour$Virus%in%colData[colData$col_prob_2<=0.05,Sample],]
+
+# convert dCt to 40-
 col_small$dCT <- 40-col_small$dCT
 
+# data frame for probabilities
+p1 <- c("italic('p')==~0.028", 
+		"italic('p')==~0.014",
+		"italic('p')==~0.022",
+		"italic('p')==~0.106",
+		"italic('p')==~0.023",
+		"italic('p')==~0.878"
+)
+
+
+p2 <- c("italic('p')<~0.001", 
+		"italic('p')<~0.001",
+		"italic('p')<~0.001",
+		"italic('p')<~0.001",
+		"italic('p')<~0.001",
+		"italic('p')<~0.001"
+)
+		     
+dat <- data.frame(x = rep(10, 6), y = rep(1.3, 6),Virus=colData$Sample[levels(colour$Virus)%in%colData[colData$col_prob_2<=0.05,Sample]],p1=p1,p2=p2)	
+
+# plot
 g <- ggplot(data=col_small,aes(x=dCT,y=Log_dE,colour=Experiment))
-#g <- g + coord_fixed(ratio = 1, , ylim = NULL, expand = TRUE)
 g <- g + geom_point(size=2,na.rm = TRUE)+ scale_colour_manual(values=c("black","orange"))
+
+# make expression for greek letter axes labels
 g <- g + xlab(expression(40 - Delta*"Ct"))
 g <- g + ylab(expression(Delta*"E*"))
-g <- g + theme_classic_thin() %+replace% theme(
-		panel.border = element_rect(colour = "black", fill=NA, size=0.5),
-		axis.text.x = element_text(angle = -90, vjust = 0.5,hjust = 0)
-	)
+g <- g + theme_classic_thin() %+replace% theme(panel.border = element_rect(colour = "black", fill=NA, size=0.5))
+
+# add regression lines
 g <- g + stat_smooth(method="lm", se=FALSE)
-#g <- g + annotate("text",colour="black",x=10,y=1.3,label=colData$col_prob_1)
+
+# facet the plot
 g <- g + facet_wrap(~Virus, nrow = 3,ncol=2,scales="free_y")			     
-dat <- data.frame(x = rep(10, 6), y = rep(1.3, 6), 
-		  Virus=colData$Sample[levels(colour$Virus)%in%colData[colData$col_prob_2<=0.05,Sample]],
-		  labs=round(colData$col_prob_1[levels(colour$Virus)%in%colData[colData$col_prob_2<=0.05,Sample]],3),
-		  labs2=rep(0.001,6))				     
- 
-g + geom_text(aes(x, y, label=labs, group=NULL),data=dat,inherit.aes=F) + geom_text(aes(x, y-0.1, label=labs2, group=NULL),data=dat,inherit.aes=F,colour="orange")
 			     
- g + geom_text(data=colData,aes(label=col_prob_1),inherit.aes=F,x=10,y=1.3)			     
-ggsave("test.pdf",g + facet_wrap(~Virus, nrow = 3,ncol=2,scales="free_y"))
+g <- g + geom_text(aes(x, y, label=p1, group=NULL),data=dat,inherit.aes=F,size=2.5,parse = T) + 
+geom_text(aes(x, y-0.05, label=p2, group=NULL),data=dat,inherit.aes=F,colour="orange",size=2.5,parse = T)
+			     
+ggsave("Figure_2.pdf",g)
 
 #===============================================================================
 #      Figure S1 
