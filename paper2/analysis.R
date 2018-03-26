@@ -209,8 +209,85 @@ layout_matrix <- cbind(c(1,1,2),c(1,1,2))
 
 ggsave("Figure_1_NEW.pdf",grid.arrange(gt2,gt1,layout_matrix=layout_matrix),width=8,height=9)
 
+
 #===============================================================================
 #      Figure 2 
+#===============================================================================
+
+var_means_exp <- as.data.frame(data.table(Sample=colnames(DF),var_1=apply(DF[1:40,],2,var),var_2=apply(DF[41:89,],2,var),mean_1=colMeans(40-DF[1:40,]),mean_2=colMeans(40-DF[41:89,])))
+rownames(var_means_exp) <- var_means_exp$Sample
+var_means_exp <- var_means_exp[rownames(cormat)[18:1],]
+var_means_exp <- var_means_exp[c(1:5,18,6:17),]
+
+var_means <- data.table(Virus=as.factor(c(var_means_exp$Sample,var_means_exp$Sample)),
+						Experiment=as.factor(c(rep("Experiment 1",18),rep("Experiment 2",18))),
+						Mean=c(var_means_exp$mean_1,var_means_exp$mean_2),
+						Variance=c(var_means_exp$var_1,var_means_exp$var_2))
+var_means$Virus <- factor(var_means$Virus,levels(var_means$Virus)[c(15,14,9,16,17,13,3,10,11,2,1,5:8,18,4,12)])						
+
+melted_var_means <- melt(var_means,id.vars=c("Virus","Experiment"))
+
+melted_var_means[variable=="Variance",y_min:=0]
+melted_var_means[variable=="Variance",y_max:=62]
+melted_var_means[variable=="Mean",y_min:=0]
+melted_var_means[variable=="Mean",y_max:=30.1]
+
+melted_means <- melted_var_means[variable=="Mean",]
+melted_vars <- melted_var_means[variable=="Variance",]
+
+
+g <- ggplot(data=melted_means,aes(x=Virus,y=value,fill=variable,g=Experiment))
+g <- g + geom_bar(stat="identity",colour="white",width=0.7,position = position_dodge(width=0.75) )
+g <- g + scale_fill_manual(values = c("Mean" = "black", "Variance" = "orange"))
+g <- g + geom_vline(xintercept=c(5.5,6.5,11.5,16.5), linetype="dashed", color = "red") 
+g <- g + ylab(expression(40 - Delta*"Ct"))
+g <- g + facet_wrap(~Experiment+variable, nrow = 2,ncol=1,scales="free_y")
+g <- g + expand_limits(y=30)
+g <- g + theme_blank(base_size=12) %+replace% 
+	theme(panel.border = element_rect(colour = "black", fill=NA, size=0.5,linetype=1),
+	axis.title.x=element_blank(),
+	legend.position="none",
+	axis.text.x = element_text(angle = 45, vjust = 1,hjust = 1),
+	axis.ticks=element_blank())
+
+# remove space at bottom of grapha and retain space at top
+g <- g + scale_y_continuous(expand = expand_scale(mult = c(0, .075))) 
+
+# set different y_limits for each facet
+g <- g + geom_blank(aes(y = y_min)) + geom_blank(aes(y = y_max))
+g1 <- g
+
+
+g <- ggplot(data=melted_vars,aes(x=Virus,y=value,fill=variable,g=Experiment))
+g <- g + geom_bar(stat="identity",colour="white",width=0.7,position = position_dodge(width=0.75) )
+g <- g + scale_fill_manual(values = c("Mean" = "black", "Variance" = "orange"))
+g <- g + geom_vline(xintercept=c(5.5,6.5,11.5,16.5), linetype="dashed", color = "red") 
+g <- g + ylab("")
+#g <- g + ylab(expression(40 - Delta*"Ct"))
+g <- g + facet_wrap(~Experiment+variable, nrow = 2,ncol=1,scales="free_y")
+g <- g + expand_limits(y=30)
+g <- g + theme_blank(base_size=12) %+replace% 
+	theme(panel.border = element_rect(colour = "black", fill=NA, size=0.5,linetype=1),
+	axis.title.x=element_blank(),
+	legend.position="none",
+	axis.text.x = element_text(angle = 45, vjust = 1,hjust = 1),
+	axis.ticks=element_blank())
+
+# remove space at bottom of grapha and retain space at top
+g <- g + scale_y_continuous(expand = expand_scale(mult = c(0, .075))) 
+
+# set different y_limits for each facet
+g <- g + geom_blank(aes(y = y_min)) + geom_blank(aes(y = y_max))
+g2 <- g
+     
+ggsave("Figure_2_NEW.pdf",grid.arrange(g1,g2,ncol=2,nrow=1),width=8,height=8)
+
+
+
+
+
+#===============================================================================
+#      Figure 3 
 #===============================================================================
 
 # melt the imported data
@@ -271,7 +348,7 @@ g <- g + facet_wrap(~Virus, nrow = 3,ncol=2,scales="free_y")
 g <- g + geom_text(aes(x, y, label=p1, group=NULL),data=dat,inherit.aes=F,size=2.5,parse = T) + 
 geom_text(aes(x, y-0.05, label=p2, group=NULL),data=dat,inherit.aes=F,colour="orange",size=2.5,parse = T)
 			     
-ggsave("Figure_2.pdf",g)
+ggsave("Figure_3.pdf",g)
 
 #===============================================================================
 #      Figure S1 
