@@ -235,19 +235,25 @@ write.table(results,"new_results.txt",sep="\t",row.names=F,quote=F,na="")
 #===============================================================================
 
 ##### pca plot using metabarcoding plotOrd function ####
-colData <-sample_info[,2:3]
-colnames(colData) <- c("Condition","Batch")
-colData[colData$Condition=="compost_control",1] <- "C"
-colData[colData$Condition=="compost_mvx",1] <- "A"
-colData[colData$Batch=="A",2] <- "V4"
-colData[colData$Batch=="B",2] <- "V5"
+#colData <-sample_info[,2:3]
+#colnames(colData) <- c("Condition","Batch")
+#colData[colData$Condition=="compost_control",1] <- "C"
+#colData[colData$Condition=="compost_mvx",1] <- "A"
+#colData[colData$Batch=="A",2] <- "V4"
+#colData[colData$Batch=="B",2] <- "V5"
 
+rownames(colData) <- colnames(E.avg$A)
 	     
-mypca <- prcomp(t(E.avg$M))
+mypca <- prcomp(t(E.avg$A))
 mypca$percentVar <- mypca$sdev^2/sum(mypca$sdev^2)
 df <- t(data.frame(t(mypca$x)*mypca$percentVar))
-g <- plotOrd(df,colData,dimx=1,dimy=2,design="Condition",xlabel="PC1",ylabel="PC2") 
-g_pca <- g + theme_classic_thin(16) %+replace% theme(legend.position = "bottom",axis.text = element_text(colour="grey20"))
+
+ggsave("PCA_NEW_COLOUR.pdf",plotOrd(df,colData,design="Condition",shape="Day",alpha=0.75))
+
+g_pca <- plotOrd(df,colData,design="Sample",alpha=0.75,textSize=16,legend="bottom",ylims=c(-8,16))
+
+# g <- plotOrd(df,colData,dimx=1,dimy=2,design="Condition",xlabel="PC1",ylabel="PC2") 
+# g_pca <- g + theme_classic_thin(16) %+replace% theme(legend.position = "bottom",axis.text = element_text(colour="grey20"))
 
 #### ma plot using function below ####
 plot_ma(mvx_effect,xlim=c(-4,4))
@@ -257,18 +263,23 @@ plot_ma(day2_effect,legend=T)
 
 #### virus plot ####
 # get list of viruses	     
-viruses <- E.avg$A[grep("^C\\d.*",E.avg$genes,perl=T),]
+viruses <- data.table(contig=E.avg$genes[grep("^C\\d.*",E.avg$genes,perl=T)],E.avg$A[grep("^C\\d.*",E.avg$genes,perl=T),])
 # get new virus names
 vnames <- read.table("viruses.txt",header=T,sep="\t")
-# rename the viruses
-rownames(viruses) <- vnames$virus
+# add sample names  
+colnames(viruses)[-1] <- paste(sub("C","Control_",sub("A","Treated_",targets$Condition)),seq(1,4),sep="_")
+#rownames(viruses) <- vnames$virus
+# subset viruses (get rid of rev)
+viruses <- left_join(vnames,viruses)
 #colnames(viruses) <- paste(targets_mcb$Condition,seq(1,4),sep="_")
-# add sample names   
-colnames(viruses) <- paste(sub("C","Control_",sub("A","Treated_",targets$Condition)),seq(1,4),sep="_")
+ 
 
 # melt the data
-test2 <- melt(as.matrix(viruses))
-test2$Var1 <- factor(test2$Var1, levels = as.factor(row.names(viruses)[ hclust(dist((viruses)))$order]))	   
+test2 <- melt(viruses)
+# set virus factor order
+test2$virus <- factor(test2$virus, levels = as.factor(viruses[hclust(dist((viruses[,c(-1,-2)])))$order,2]))	
+# remove contig column
+test2 <- test2[-1]
 #colnames(test2)[3] <- "Scale"
 # mean centre the data
 test2$Scale <- scale(test2[,3],scale=F)
@@ -316,7 +327,7 @@ test2$value.y[is.na(test2$value.y)] <- 1
 test2$label <- sapply(test2$value.y,function(x) if(as.numeric(x)<=0.05) {return("\u2020")}else{return("")})
 test2$Var1 <- factor(test2$Var1, levels = as.factor(row.names(viruses)[ hclust(dist((viruses)))$order]))
 # scale expression values
-test2$Scale <- scale(test2[,3],scale=F)
+test2$Scale <- as.vector(scale(test2[,3],scale=F))
 		      
 # plot sprintf("%0.2f", round(Scale, digits = 1))
 g <- ggplot(test2,aes(x=Var2,y=Var1,fill=Scale))
@@ -381,13 +392,14 @@ grid.arrange(g2)
 dev.off()
 
 #### combine PCA, Virus (v3) and anti_viral plots ####
-title.a <- textGrob(label = "a",x = unit(0, "lines"),y = unit(0, "lines"),hjust = -0.5, vjust = 0,gp = gpar(fontsize = 14,face="bold"))
-title.b <- textGrob(label = "b",x = unit(0, "lines"),y = unit(0, "lines"),hjust = -0.5, vjust = 0,gp = gpar(fontsize = 14,face="bold"))
+title.a <- textGrob(label = "a",x = unit(0, "lines"),y = unit(0, "lines"),hjust = -0.5, vjust = 0,gp = gpar(fontsize = 18,face="bold"))
+title.b <- textGrob(label = "b",x = unit(0, "lines"),y = unit(0, "lines"),hjust = -0.5, vjust = 0,gp = gpar(fontsize = 18,face="bold"))
+title.c <- textGrob(label = "c",x = unit(0, "lines"),y = unit(0, "lines"),hjust = -0.5, vjust = 0,gp = gpar(fontsize = 18,face="bold"))
 g2 <- arrangeGrob(g_pca, top = title.a)
 g3 <- arrangeGrob(g_virus, top = title.b)
 g4 <- arrangeGrob(g_anti, top = title.c)
-g <- grid.arrange(g2,g3,g4,layout_matrix=rbind(c(1,1),c(2,3),c(2,3)))
-ggsave("Figure_4_v2.pdf",g,device=cairo_pdf,width=8,height=8)
+g <- grid.arrange(g2,g3,g4,layout_matrix=rbind(c(1,1),c(2,3),c(2,3)),just="left")
+ggsave("Figure_4_v3.pdf",g,device=cairo_pdf,width=8,height=8)
 
 #### Enzymes ####
 enzymes <- read.table("enzymes.txt",header=T,sep="\t",)
