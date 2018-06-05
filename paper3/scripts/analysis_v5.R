@@ -250,7 +250,7 @@ df <- t(data.frame(t(mypca$x)*mypca$percentVar))
 
 ggsave("PCA_NEW_COLOUR.pdf",plotOrd(df,colData,design="Condition",shape="Day",alpha=0.75))
 
-g_pca <- plotOrd(df,colData,design="Sample",alpha=0.75,textSize=16,legend="bottom",ylims=c(-8,16))
+g_pca <- plotOrd(df,colData,design="Sample",alpha=0.75,textSize=16,legend="bottom",pointSize=1.5)#ylims=c(-8,16))
 
 # g <- plotOrd(df,colData,dimx=1,dimy=2,design="Condition",xlabel="PC1",ylabel="PC2") 
 # g_pca <- g + theme_classic_thin(16) %+replace% theme(legend.position = "bottom",axis.text = element_text(colour="grey20"))
@@ -370,11 +370,11 @@ test2$label <- sapply(test2$value.y,function(x) if(as.numeric(x)<=0.05){return("
 		      
 # plot  
 g <- ggplot(test2,aes(x=Var2,y=Var1,fill=Scale))
-g<- g+ geom_tile(colour = "black") + geom_text(label=test2$label,size=2.8,hjust = -3,vjust=-0.1)
+g<- g+ geom_tile(colour = "black") + geom_text(label=test2$label,size=2.8,hjust = -3,vjust=0.1)
 g <- g + scale_fill_gradient2(mid="orange", low = "red",high = "yellow", na.value = "black")
 g <- g + labs(x=NULL,y=NULL)
 g <- g + theme(text = element_text(size =16),legend.position = "bottom")
-ggsave("av_plot_1.pdf",g,device=cairo_pdf,width=4)
+#ggsave("av_plot_1.pdf",g,device=cairo_pdf,width=4)
 g_anti <- g
 
 # V2
@@ -392,14 +392,16 @@ grid.arrange(g2)
 dev.off()
 
 #### combine PCA, Virus (v3) and anti_viral plots ####
-title.a <- textGrob(label = "a",x = unit(0, "lines"),y = unit(0, "lines"),hjust = -0.5, vjust = 0,gp = gpar(fontsize = 18,face="bold"))
-title.b <- textGrob(label = "b",x = unit(0, "lines"),y = unit(0, "lines"),hjust = -0.5, vjust = 0,gp = gpar(fontsize = 18,face="bold"))
-title.c <- textGrob(label = "c",x = unit(0, "lines"),y = unit(0, "lines"),hjust = -0.5, vjust = 0,gp = gpar(fontsize = 18,face="bold"))
-g2 <- arrangeGrob(g_pca, top = title.a)
+title.a <- textGrob(label = "a",x = unit(0, "lines"),y = unit(0, "lines"),hjust = -0.5, vjust = 0,gp = gpar(fontsize = 20,face="bold"))
+title.b <- textGrob(label = "b",x = unit(0, "lines"),y = unit(0, "lines"),hjust = -0.5, vjust = 0,gp = gpar(fontsize = 20,face="bold"))
+title.c <- textGrob(label = "c",x = unit(0, "lines"),y = unit(0, "lines"),hjust = -0.5, vjust = 0,gp = gpar(fontsize = 20,face="bold"))
+g2 <- arrangeGrob(g_pca+theme_classic_thin(base_size=14), top = title.a)
 g3 <- arrangeGrob(g_virus, top = title.b)
 g4 <- arrangeGrob(g_anti, top = title.c)
-g <- grid.arrange(g2,g3,g4,layout_matrix=rbind(c(1,1),c(2,3),c(2,3)),just="left")
-ggsave("Figure_4_v3.pdf",g,device=cairo_pdf,width=8,height=8)
+g <- grid.arrange(g2,g3,g4,layout_matrix=rbind(c(1,1),c(2,3),c(2,3)))
+		      
+#g <- grid.arrange(arrangeGrob(g2),arrangeGrob(g3,g4,ncol=2),heights=unit.c(unit(1, "npc") - unit(22, "lines"),unit(22, "lines")),nrow=2)
+ggsave("Figure_4_v3.pdf",g,device=cairo_pdf,width=8,height=9)
 
 #### Enzymes ####
 enzymes <- read.table("enzymes.txt",header=T,sep="\t",)
