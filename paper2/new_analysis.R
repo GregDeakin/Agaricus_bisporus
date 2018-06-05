@@ -93,7 +93,7 @@ colData <- as.data.table(inner_join(colData,as.data.frame(Clusters$both)%>% muta
 colData <- colData[order(colData[,3],Group),]
 colData$Clusters <- c(rep(2,6),rep(3,5),rep(1,5),4,4)
 colData <- colData[order(Clusters,Group,Sample),]
-
+colData$hclust <- as.factor(c(rep(1,6),rep(2,5),rep(3,5),rep(4,2))
 
 #===============================================================================
 #       PCA
@@ -407,19 +407,18 @@ ggsave("Figure_3_Mean_Abundance.pdf",grid.arrange(g1,g2,ncol=2,nrow=1),width=8,h
 #===============================================================================
 
 # melt the imported data
-colour <- melt(countData[,-1],id.vars=c("Experiment","Log(?E)"))))
+colour <- melt(countData[,-1],id.vars=c("Experiment","Log(?E)"))
 
 # convert experiment from a numeric to a factor
 colour$Experiment <- as.factor(colour$Experiment)
 
 # add colnames
 colnames(colour) <- c("Experiment", "Log_dE", "Virus","dCT")
-
+	     
 # calculate correlation probablities for both experiments
 colData$col_prob_1 <- sapply(seq(4,21),function(i) cor.test(unlist(countData[Experiment=="1",3]),unlist(countData[Experiment=="1",..i]))[[3]])
 colData$col_prob_2 <- sapply(seq(4,21),function(i) cor.test(unlist(countData[Experiment=="2",3]),unlist(countData[Experiment=="2",..i]))[[3]])
-
-
+			     
 # subset colour based on significant correlation
 col_small <- colour[colour$Virus%in%colData[colData$col_prob_2<=0.05,Sample],]
 
@@ -466,6 +465,72 @@ geom_text(aes(x, y-0.05, label=p2, group=NULL),data=dat,inherit.aes=F,colour="or
 
 ggsave("Figure_4.pdf",g)
 
+
+### PER CLUSTER ###
+
+# combine colour with colData	     
+colour2 <- as.data.table(left_join(colour,colData,by=c("Virus"="Sample")))
+			     
+# probabilities per cluster
+cor.test(colour2$Log_dE[colour2$Experiment=="1"&colour2$Clusters==1],colour2$dCT[colour2$Experiment=="1"&colour2$Clusters==1])[[3]]
+cor.test(colour2$Log_dE[colour2$Experiment=="1"&colour2$Clusters==2],colour2$dCT[colour2$Experiment=="1"&colour2$Clusters==2])[[3]]
+cor.test(colour2$Log_dE[colour2$Experiment=="1"&colour2$Clusters==3],colour2$dCT[colour2$Experiment=="1"&colour2$Clusters==3])[[3]]
+cor.test(colour2$Log_dE[colour2$Experiment=="1"&colour2$Clusters==4],colour2$dCT[colour2$Experiment=="1"&colour2$Clusters==4])[[3]]
+			     
+cor.test(colour2$Log_dE[colour2$Experiment=="2"&colour2$Clusters==1],colour2$dCT[colour2$Experiment=="2"&colour2$Clusters==1])[[3]]
+cor.test(colour2$Log_dE[colour2$Experiment=="2"&colour2$Clusters==2],colour2$dCT[colour2$Experiment=="2"&colour2$Clusters==2])[[3]]
+cor.test(colour2$Log_dE[colour2$Experiment=="2"&colour2$Clusters==3],colour2$dCT[colour2$Experiment=="2"&colour2$Clusters==3])[[3]]
+cor.test(colour2$Log_dE[colour2$Experiment=="2"&colour2$Clusters==4],colour2$dCT[colour2$Experiment=="2"&colour2$Clusters==4])[[3]]
+
+#cor.test(colour2$Log_dE[colour2$Experiment=="1"&colour2$hclust==1],colour2$dCT[colour2$Experiment=="1"&colour2$hclust==1])[[3]]
+#cor.test(colour2$Log_dE[colour2$Experiment=="2"&colour2$hclust==1],colour2$dCT[colour2$Experiment=="2"&colour2$hclust==1])[[3]]
+#cor.test(colour2$Log_dE[colour2$Experiment=="1"&colour2$hclust==2],colour2$dCT[colour2$Experiment=="1"&colour2$hclust==2])[[3]]
+#cor.test(colour2$Log_dE[colour2$Experiment=="2"&colour2$hclust==2],colour2$dCT[colour2$Experiment=="2"&colour2$hclust==2])[[3]]
+
+p1 <- c("italic('p')==~0.828",
+	"italic('p')==~0.099",
+	"italic('p')<~0.001",
+	"italic('p')==~0.622"
+)
+
+p2 <- c("italic('p')==~0.002",
+	"italic('p')==~0.375",
+	"italic('p')<~0.001",
+	"italic('p')==~0.657"
+)
+dat <- data.frame(x = rep(10, 4), y = rep(1.3, 4),Clusters=c(1:4),p1=p1,p2=p2)
+dat[4,1] <- c(30)
+
+# convert dCt to 40-
+colour2$dCT <- 40-colour2$dCT
+
+# make a labeler (saves changing the Cluster factor levels and remaking dat)
+relabel <- c(
+	`1` = "Cluster 1",
+	`2` = "Cluster 2",
+	`3` = "Cluster 3",
+	`4` = "Cluster 4"
+)
+# plot
+g <- ggplot(data=colour2,aes(x=dCT,y=Log_dE,colour=Experiment))
+g <- g + geom_point(size=2,na.rm = TRUE)+ scale_colour_manual(values=c("black","orange"))
+
+# make expression for greek letter axes labels
+g <- g + xlab(expression(40 - Delta*"Ct"))
+g <- g + ylab(expression(Delta*"E*"))
+g <- g + theme_classic_thin() %+replace% theme(panel.border = element_rect(colour = "black", fill=NA, size=0.5))
+
+# add regression lines
+g <- g + stat_smooth(method="lm", se=FALSE)
+
+# facet the plot and relabel 
+g <- g + facet_wrap(~Clusters, nrow = 3,ncol=2,scales="free_y",labeller = as_labeller(relabel))
+
+# 
+g <- g + geom_text(aes(x, y, label=p1, group=NULL),data=dat,inherit.aes=F,size=2.5,parse = T) +
+geom_text(aes(x, y-0.05, label=p2, group=NULL),data=dat,inherit.aes=F,colour="orange",size=2.5,parse = T)
+
+ggsave("Figure_5_V2.pdf",g)
 
 #===============================================================================
 #      Density plots
