@@ -487,18 +487,18 @@ cor.test(colour2$Log_dE[colour2$Experiment=="2"&colour2$Clusters==4],colour2$dCT
 #cor.test(colour2$Log_dE[colour2$Experiment=="1"&colour2$hclust==2],colour2$dCT[colour2$Experiment=="1"&colour2$hclust==2])[[3]]
 #cor.test(colour2$Log_dE[colour2$Experiment=="2"&colour2$hclust==2],colour2$dCT[colour2$Experiment=="2"&colour2$hclust==2])[[3]]
 
-p1 <- c("italic('p')==~0.828",
-	"italic('p')==~0.099",
-	"italic('p')<~0.001",
-	"italic('p')==~0.622"
+p1 <- c("italic('p')==~0.863",
+	"italic('p')==~0.427",
+	"italic('p')==~0.044",
+	"italic('p')==~0.779"
 )
 
-p2 <- c("italic('p')==~0.002",
-	"italic('p')==~0.375",
+p2 <- c("italic('p')<~0.001",
+	"italic('p')==~0.165",
 	"italic('p')<~0.001",
-	"italic('p')==~0.657"
+	"italic('p')==~0.081"
 )
-dat <- data.frame(x = rep(10, 4), y = rep(1.3, 4),Clusters=c(1:4),p1=p1,p2=p2)
+dat <- data.frame(x = rep(10, 4), y = rep(1.2, 4),Clusters=c(1:4),p1=p1,p2=p2)
 dat[4,1] <- c(30)
 
 # convert dCt to 40-
@@ -513,7 +513,8 @@ relabel <- c(
 )
 # plot
 g <- ggplot(data=colour2,aes(x=dCT,y=Log_dE,colour=Experiment))
-g <- g + geom_point(size=2,na.rm = TRUE)+ scale_colour_manual(values=c("black","orange"))
+#g <- g + geom_point(size=2,na.rm = TRUE)+ scale_colour_manual(values=c("black","orange"))
+g <- g+ scale_colour_manual(values=c("black","orange"))
 
 # make expression for greek letter axes labels
 g <- g + xlab(expression(40 - Delta*"Ct"))
@@ -521,17 +522,26 @@ g <- g + ylab(expression(Delta*"E*"))
 g <- g + theme_classic_thin() %+replace% theme(panel.border = element_rect(colour = "black", fill=NA, size=0.5))
 
 # add regression lines
-g <- g + stat_smooth(method="lm", se=FALSE)
+g <- g + stat_smooth(method="lm", se=T)
 
 # facet the plot and relabel 
 g <- g + facet_wrap(~Clusters, nrow = 3,ncol=2,scales="free_y",labeller = as_labeller(relabel))
 
 # 
 g <- g + geom_text(aes(x, y, label=p1, group=NULL),data=dat,inherit.aes=F,size=2.5,parse = T) +
-geom_text(aes(x, y-0.05, label=p2, group=NULL),data=dat,inherit.aes=F,colour="orange",size=2.5,parse = T)
+geom_text(aes(x, y-0.03, label=p2, group=NULL),data=dat,inherit.aes=F,colour="orange",size=2.5,parse = T)
 
 ggsave("Figure_5_V2.pdf",g)
 
+summary(lm(deltaE~ORFan2+ORFan3+ORFan5+ORFan7+MBV,data=countData[Experiment=="1",]))
+summary(lm(deltaE~ORFan2+ORFan3+ORFan5+ORFan7+MBV,data=countData[Experiment=="2",]))
+summary(lm(deltaE~AbV2+AbSV+AbV10+AbV12+AbV6_RNA1+AbV6_RNA2,data=countData[Experiment=="1",]))			     
+summary(lm(deltaE~AbV2+AbSV+AbV10+AbV12+AbV6_RNA1+AbV6_RNA2,data=countData[Experiment=="2",]))					     
+summary(lm(deltaE~AbV16_RNA1+AbV16_RNA2+AbV16_RNA3+AbV16_RNA4+ORFAN8,data=countData[Experiment=="1",]))
+summary(lm(deltaE~AbV16_RNA1+AbV16_RNA2+AbV16_RNA3+AbV16_RNA4+ORFAN8,data=countData[Experiment=="2",]))
+summary(lm(deltaE~AbV14+AbV9,data=countData[Experiment=="1",]))			     
+summary(lm(deltaE~AbV14+AbV9,data=countData[Experiment=="2",]))			     
+			     
 #===============================================================================
 #      Density plots
 #===============================================================================
