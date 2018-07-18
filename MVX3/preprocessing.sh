@@ -48,6 +48,7 @@ for FR in $PROJECT_FOLDER/MVX3/cleaned/*_R1.fq.gz; do
   $PROJECT_FOLDER/MVX3/corrected \
   $FR \
   $RR  \
+  t=2 \
   target=100 \
   min=2 \
   ecc=t \
