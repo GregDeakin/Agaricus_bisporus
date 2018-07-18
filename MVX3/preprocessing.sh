@@ -41,3 +41,16 @@ for FR in $PROJECT_FOLDER/MVX3/cleaner/*_R1.fq.gz.filtered.fq.gz.filtered.fq.gz;
   minhits=2 \
   t=2
 done
+
+for FR in $PROJECT_FOLDER/MVX3/cleaned/*_R1.fq.gz; do
+  RR=$(sed 's/_R1/_R2/' <<< $FR)
+  $PROJECT_FOLDER/metagenomics_pipeline/scripts/PIPELINE.sh -c normalise -p bbnorm \
+  $PROJECT_FOLDER/MVX3/corrected \
+  $FR \
+  $RR  \
+  target=100 \
+  min=2 \
+  ecc=t \
+  passes=1 \
+  bits=16 prefilter
+done
