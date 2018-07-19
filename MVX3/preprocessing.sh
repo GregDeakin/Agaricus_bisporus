@@ -23,6 +23,18 @@ for FR in $PROJECT_FOLDER/MVX3/filtered/*_R1.fq.gz.filtered.fq.gz; do
   t=2
 done
 
+# Known virus gene removal (bbduk)
+for FR in $PROJECT_FOLDER/MVX3/cleaned/*_R1.fq.gz; do
+  RR=$(sed 's/_R1/_R2/' <<< $FR)
+  $PROJECT_FOLDER/metatranscriptomics_pipeline/scripts/PIPELINE.sh -c filter -p bbduk \
+  $PROJECT_FOLDER/MVX3/temp/all_vir.fa \
+  $PROJECT_FOLDER/MVX3/cleaner \
+  $FR \
+  $RR \
+  tossjunk \
+  k=31 \
+  t=2
+done
 
 # Human contaminant removal (BBMap)
 for FR in $PROJECT_FOLDER/MVX3/cleaner/*_R1.fq.gz.filtered.fq.gz.filtered.fq.gz; do
