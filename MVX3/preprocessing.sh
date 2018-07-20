@@ -15,7 +15,7 @@ for FR in $PROJECT_FOLDER/MVX3/filtered/*_R1.fq.gz.filtered.fq.gz; do
   RR=$(sed 's/_R1/_R2/' <<< $FR)
   $PROJECT_FOLDER/metatranscriptomics_pipeline/scripts/PIPELINE.sh -c filter -p bbduk \
   $PROJECT_FOLDER/contaminants/contaminants.fasta \
-  $PROJECT_FOLDER/MVX3/cleaner \
+  $PROJECT_FOLDER/MVX3/cleaned \
   $FR \
   $RR \
   tossjunk \
@@ -41,7 +41,7 @@ for FR in $PROJECT_FOLDER/MVX3/cleaner/*_R1.fq.gz.filtered.fq.gz.filtered.fq.gz;
   RR=$(sed 's/_R1/_R2/' <<< $FR)
   $PROJECT_FOLDER/metatranscriptomics_pipeline/scripts/PIPELINE.sh -c filter -p bbmap \
   $PROJECT_FOLDER/metatranscriptomics_pipeline/common/resources/contaminants/bbmap_human/hg19_main_mask_ribo_animal_allplant_allfungus.fa \
-  $PROJECT_FOLDER/MVX3/cleaned \
+  $PROJECT_FOLDER/MVX3/cleanest \
   $FR \
   $RR \
   minid=0.95 \
@@ -54,7 +54,7 @@ for FR in $PROJECT_FOLDER/MVX3/cleaner/*_R1.fq.gz.filtered.fq.gz.filtered.fq.gz;
   t=2
 done
 
-for FR in $PROJECT_FOLDER/MVX3/cleaned/*_R1.fq.gz; do
+for FR in $PROJECT_FOLDER/MVX3/cleaner/*_R1.fq.gz; do
   RR=$(sed 's/_R1/_R2/' <<< $FR)
   $PROJECT_FOLDER/metagenomics_pipeline/scripts/PIPELINE.sh -c normalise -p bbnorm \
   $PROJECT_FOLDER/MVX3/corrected \
