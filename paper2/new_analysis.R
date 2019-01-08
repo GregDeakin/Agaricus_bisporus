@@ -390,6 +390,7 @@ ggsave("NEW_FIG3_MEANS.pdf",g)
 # box plots
 DF$Experiment <- c(rep("Experiment 1",40),rep("Experiment 2",49))
 t2 <- melt(DF,id.vars="Experiment")
+t2$value <- 40 - t2$value
 t3 <- colData[t2,on=c("Sample"="variable")]
 t3$Sample <- factor(t3$Sample,levels=c(
   "ORFan2","ORFan3","ORFan5","ORFan7","MBV","AbV2","AbSV","AbV10","AbV12","AbV6_RNA1","AbV6_RNA2",
@@ -405,6 +406,7 @@ g <- g + theme_blank(base_size=12) %+replace%
 	legend.position="none",
 	axis.text.x = element_text(angle = 45, vjust = 1,hjust = 1),
 	axis.ticks=element_blank())
+ggsave("NEW_FIG3_BOXPLOTS.pdf",g)
 
 # other plots???
 g <- ggplot(data=melted_means,aes(x=Virus,y=value,fill=variable,g=Experiment))
