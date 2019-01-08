@@ -387,8 +387,26 @@ g <- g + theme_blank(base_size=12) %+replace%
 ggsave("NEW_FIG3_MEDIANS.pdf",g)
 ggsave("NEW_FIG3_MEANS.pdf",g)
 
-	     
+# box plots
+DF$Experiment <- c(rep("Experiment 1",40),rep("Experiment 2",49))
+t2 <- melt(DF,id.vars="Experiment")
+t3 <- colData[t2,on=c("Sample"="variable")]
+t3$Sample <- factor(t3$Sample,levels=c(
+  "ORFan2","ORFan3","ORFan5","ORFan7","MBV","AbV2","AbSV","AbV10","AbV12","AbV6_RNA1","AbV6_RNA2",
+  "AbV16_RNA1","AbV16_RNA2","AbV16_RNA3","AbV16_RNA4","ORFAN8","AbV14","AbV9"))
+g <- ggplot(data=t3,aes(x=Sample,y=value))
+g <- g + geom_boxplot()
+g <- g + geom_vline(xintercept=c(6,11.5,16.5), linetype="dashed", color = "red")
+g <- g + ylab(expression(40 - Delta*"Ct"))
+g <- g + facet_wrap(~Experiment,ncol=1,scales="free_y")
+g <- g + theme_blank(base_size=12) %+replace%
+	theme(panel.border = element_rect(colour = "black", fill=NA, size=0.5,linetype=1),
+	axis.title.x=element_blank(),
+	legend.position="none",
+	axis.text.x = element_text(angle = 45, vjust = 1,hjust = 1),
+	axis.ticks=element_blank())
 
+# other plots???
 g <- ggplot(data=melted_means,aes(x=Virus,y=value,fill=variable,g=Experiment))
 g <- g + geom_bar(stat="identity",colour="white",width=0.7,position = position_dodge(width=0.75) )
 g <- g + scale_fill_manual(values = c("Mean" = "black", "Variance" = "orange"))
