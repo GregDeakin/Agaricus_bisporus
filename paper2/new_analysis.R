@@ -49,30 +49,29 @@ $exp2$hopkins_stat
 [1] 0.3145393
 
 # Ward Hierarchical Clustering
-d <- lapply(list_DT,function(DF) dist(t(DF), method = "euclidean")) # distance matrix
+d <- lapply(list_DT,function(DF) {dist(t(DF), method = "euclidean")}) # distance matrix
 fit <- lapply(d,hclust,method="ward.D2")
 #lapply(fit,plot)  # display dendogram
-g_hi <- lapply(fit,function(fit) ggdendrogram(fit,rotate=F)+ theme_blank(base_size=16) %+replace%
+g_hi <- lapply(fit,function(fit) {ggdendrogram(fit,rotate=F)+ theme_blank(base_size=16) %+replace%
  theme(axis.text.x = element_text(angle = 45, vjust = 1.1,hjust = 1),
  axis.ticks=element_blank(),
  axis.title=element_blank(),
  plot.title = element_text(hjust = -0.06),
- plot.margin = unit(c(5.5,5.5,0,5.5), "pt")))
-
+ plot.margin = unit(c(5.5,5.5,0,5.5), "pt"))})
 
 # Compute the gap statistic
 set.seed(sum(utf8ToInt("Kerry Burton")))
-gap_stat_p <- lapply(list_DT,function(DF) clusGap(t(DF), FUN = pam,K.max = 8, B = 500))
+gap_stat_p <- lapply(list_DT,function(DF) {clusGap(t(DF), FUN = pam,K.max = 8, B = 500)})
 
 #######  FIGURE S1 - no. clusters ########
 
 g1 <- lapply(gap_stat_p,fviz_gap_stat,maxSE=list(method="globalSEmax", SE.factor = 3))
-g2 <- lapply(list_DT,function(DF) fviz_nbclust(t(DF), pam, method = "wss",k.max = 8))
-g3 <- lapply(list_DT,function(DF) fviz_nbclust(t(DF), pam, method = "silhouette",k.max = 8))
+g2 <- lapply(list_DT,function(DF) {fviz_nbclust(t(DF), pam, method = "wss",k.max = 8)})
+g3 <- lapply(list_DT,function(DF) {fviz_nbclust(t(DF), pam, method = "silhouette",k.max = 8)})
 
-g1 <- lapply(g1,function(g) g +ylab("") +theme_classic_thin(base_size=14) %+replace% theme(plot.title = element_text(hjust = 0.5),axis.title.x = element_blank()))
-g2 <- lapply(g2,function(g) g +ylab("") +theme_classic_thin(base_size=14) %+replace% theme(plot.title = element_blank(),axis.title.x = element_blank()))
-g3 <- lapply(g3,function(g) g +ylab("") +theme_classic_thin(base_size=14) %+replace% theme(plot.title = element_blank()))
+g1 <- lapply(g1,function(g) {g +ylab("") +theme_classic_thin(base_size=14) %+replace% theme(plot.title = element_text(hjust = 0.5),axis.title.x = element_blank())})
+g2 <- lapply(g2,function(g) {g +ylab("") +theme_classic_thin(base_size=14) %+replace% theme(plot.title = element_blank(),axis.title.x = element_blank())})
+g3 <- lapply(g3,function(g) {g +ylab("") +theme_classic_thin(base_size=14) %+replace% theme(plot.title = element_blank())})
 
 g1[[1]] <- g1[[1]] + ggtitle("Both")
 g1[[2]] <- g1[[2]] + ggtitle("Experiment 1") + ylab("Gap statistic (k)")
@@ -87,13 +86,13 @@ g3[[3]] <- g3[[3]] + xlab("Number of clusters")
 
 
 set.seed(sum(utf8ToInt("Kerry Burton")))
-Clusters <- lapply(list_DT,function(DF) pam(t(DF),4)[[3]])
+Clusters <- lapply(list_DT,function(DF) {pam(t(DF),4)[[3]]})
 
 colData <- as.data.table(inner_join(colData,as.data.frame(Clusters$both)%>% mutate(Sample=rownames(as.data.frame(Clusters$both)))))
 colData <- colData[order(colData[,3],Group),]
 colData$Clusters <- c(rep(2,6),rep(3,5),rep(1,5),4,4)
 colData <- colData[order(Clusters,Group,Sample),]
-colData$hclust <- as.factor(c(rep(1,6),rep(2,5),rep(3,5),rep(4,2))
+colData$hclust <- as.factor(c(rep(1,6),rep(2,5),rep(3,5),rep(4,2)))
 
 #===============================================================================
 #       PCA
@@ -120,8 +119,6 @@ ggsave("Figure_2_B.pdf",g2)
 
 # PCA 1 vs 2 with
 ggsave("Figure_S4.pdf",plotOrd(d,colData,design="Group",shape="Clusters",cbPalette=T,pointSize=1.5,axes=c(1,2),alpha=0.75,labels=T,sublabels=c(seq(1,18))[c(-2,-6,-11)])+ stat_ellipse(type="norm",geom="polygon", level=0.85, alpha=0.2))
-
-
 
 #===============================================================================
 #       NEW FIGURE 1 - Clustering
@@ -154,7 +151,6 @@ theme(axis.text.x = element_text(angle = 45, vjust = 1.1,hjust = 1),
 g_pca <-plotOrd(obj=d,textSize=14,colData=colData,design="Clusters",cbPalette=T,pointSize=1.5,axes=c(2,3),alpha=0.75,labels=T,sublabels=c(seq(1,18))[c(-6)])+
 stat_ellipse(type="norm",geom="polygon", level=0.75, alpha=0.2) +
 ggtitle("B") + theme_classic_thin(base_size=14) %+replace% theme(plot.title = element_text(hjust = -0.11),plot.margin = unit(c(-5,5.5,-5,5.5), "pt"))
-
 
 ### FIGURE 1 ####
 ggsave("Figure_1.pdf",grid.arrange(g_hi,g_pca,nrow=2,padding = unit(-0.5, "line")),width=7,height=7)
@@ -196,7 +192,6 @@ g <- g + theme_classic_thin(base_size=14) %+replace%
 g_sil3 <- g +	scale_y_continuous(expand = c(0, 0), limits = c(-0,0.75)) + ggtitle("C")
 
 ggsave("Figure_S3_NEW.pdf",grid.arrange(sil1,sil2,sil3,nrow=3),width=7,height=9)
-
 
 #===============================================================================
 #      Correlation heatmap (or correlation matrix)
@@ -249,11 +244,15 @@ layout_matrix <- cbind(c(1,1,2),c(1,1,2))
 
 ggsave("Figure_2.pdf",grid.arrange(gt2,gt1,layout_matrix=layout_matrix),width=8,height=9)
 
-
-
 #===============================================================================
-#       ANOVA - variance not equal nor are the distributions normal
+#       
+#	Statistical analysis of virus dCt experiment and clusterd/viruses			    
+#			    
+#	ANOVA - variance not equal nor are the distributions normal
+#
+#
 #===============================================================================
+			    
 library(car)
 
 # convert data from wide to long format
@@ -271,6 +270,11 @@ names(anova_data)[2] <- "virus"
 
 # remove rows with missing values (shouldn't be any)
 anova_data <- anova_data[complete.cases(anova_data),]
+
+# build linear model first and do some test
+model <- lm(value~experiment*virus,data=anova_data)
+grid.arrange(arrangeGrob(grobs=plot_lm(model),se=F))
+plot_lm(model)
 
 # permutation ANOVA of ordinal abundance (removes problem of unequal variance and non normality)
 
@@ -321,25 +325,29 @@ ind <- c("kl", "ch", "hartigan", "cindex", "db", "silhouette", "duda", "pseudot2
         "gamma", "gplus", "tau", "dunn", "hubert", "sdindex",
         "dindex", "sdbw")
 
-nb <- sapply(ind,function(ind)NbClust(t(DF), distance = "euclidean", min.nc = 2, max.nc = 10, method = "centroid", index =ind))
-
+nb <- sapply(ind,function(ind) {NbClust(t(DF), distance = "euclidean", min.nc = 2, max.nc = 10, method = "centroid", index =ind)})
 
 
 #===============================================================================
-#      Figure 3 - Mean abundance and variance of viral populations
+#      Figure 3 - Mean/median abundance and variance of viral populations
 #===============================================================================
 library(matrixStats)
 
+# this is actually sd_means or sd)medians
+var_means_exp <- as.data.frame(data.table(Sample=colnames(DF),var_1=apply(DF[1:40,],2,sd),var_2=apply(DF[41:89,],2,sd),mean_1=colMeans(40-DF[1:40,]),mean_2=colMeans(40-DF[41:89,])))
+# qf <- function(X){x=1/quantile(scale(X))[[4]];mad(X,constant=x)}
+#var_means_exp <- as.data.frame(data.table(Sample=colnames(DF),var_1=apply(DF[1:40,],2,qf),var_2=apply(DF[41:89,],2,qf),mean_1=colMedians(40-as.matrix(DF[1:40,])),mean_2=colMedians(40-as.matrix(DF[41:89,]))))
 
-var_means_exp <- as.data.frame(data.table(Sample=colnames(DF),var_1=apply(DF[1:40,],2,var),var_2=apply(DF[41:89,],2,var),mean_1=colMeans(40-DF[1:40,]),mean_2=colMeans(40-DF[41:89,])))
 rownames(var_means_exp) <- var_means_exp$Sample
 var_means_exp <- var_means_exp[rownames(cormat)[18:1],]
 var_means_exp <- var_means_exp[c(1:5,18,6:17),]
+
 
 var_means <- data.table(Virus=as.factor(c(var_means_exp$Sample,var_means_exp$Sample)),
 						Experiment=as.factor(c(rep("Experiment 1",18),rep("Experiment 2",18))),
 						Mean=c(var_means_exp$mean_1,var_means_exp$mean_2),
 						Variance=c(var_means_exp$var_1,var_means_exp$var_2))
+	     
 var_means$Virus <- factor(var_means$Virus,levels=colData$Sample)
 #var_means$Virus <- factor(var_means$Virus,levels(var_means$Virus)[c(15,14,9,16,17,13,3,10,11,2,1,5:8,18,4,12)])
 
@@ -353,6 +361,33 @@ melted_var_means[variable=="Mean",y_max:=30.1]
 melted_means <- melted_var_means[variable=="Mean",]
 melted_vars <- melted_var_means[variable=="Variance",]
 
+test <- melted_means[melted_vars,on=c("Virus","Experiment"),]
+test$Virus <- factor(test$Virus,levels=rownames(cormat)[18:1]) # this is not correct
+test$Virus <- factor(test$Virus,levels=c(
+  "ORFan2","ORFan3","ORFan5","ORFan7","MBV","AbV2","AbSV","AbV10","AbV12","AbV6_RNA1","AbV6_RNA2",
+  "AbV16_RNA1","AbV16_RNA2","AbV16_RNA3","AbV16_RNA4","ORFAN8","AbV14","AbV9"))
+
+
+g <- ggplot(data=test,aes(x=Virus,y=value,fill=variable,g=Experiment))
+g <- g + geom_bar(stat="identity",colour="white",width=0.7,position = position_dodge(width=0.75) )
+g <- g + scale_fill_manual(values = c("Mean" = "orange"))
+g <- g + geom_errorbar(aes(ymin=value-i.value, ymax=value+i.value),width=.2,position=position_dodge(.9))
+#g <- g + geom_vline(xintercept=c(5.5,6.5,11.5,16.5), linetype="dashed", color = "red") # this is for correlation groups
+g <- g + geom_vline(xintercept=c(6,11.5,16.5), linetype="dashed", color = "red")
+g <- g + ylab(expression(40 - Delta*"Ct"))
+g <- g + facet_wrap(~Experiment,ncol=1,scales="free_y")
+g <- g + expand_limits(y=30)
+g <- g + theme_blank(base_size=12) %+replace%
+	theme(panel.border = element_rect(colour = "black", fill=NA, size=0.5,linetype=1),
+	axis.title.x=element_blank(),
+	legend.position="none",
+	axis.text.x = element_text(angle = 45, vjust = 1,hjust = 1),
+	axis.ticks=element_blank())
+
+ggsave("NEW_FIG3_MEDIANS.pdf",g)
+ggsave("NEW_FIG3_MEANS.pdf",g)
+
+	     
 
 g <- ggplot(data=melted_means,aes(x=Virus,y=value,fill=variable,g=Experiment))
 g <- g + geom_bar(stat="identity",colour="white",width=0.7,position = position_dodge(width=0.75) )
@@ -402,6 +437,7 @@ g2 <- g
 ggsave("Figure_3_Mean_Abundance.pdf",grid.arrange(g1,g2,ncol=2,nrow=1),width=8,height=8)
 
 
+	     
 #===============================================================================
 #      Figure 5 - Cap colour and viral abundance scatter plots
 #===============================================================================
