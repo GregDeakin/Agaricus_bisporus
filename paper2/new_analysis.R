@@ -470,13 +470,21 @@ colour$Experiment <- as.factor(colour$Experiment)
 
 # add colnames
 colnames(colour) <- c("Experiment", "Log_dE", "Virus","dCT")
-	     
+
+
 # calculate correlation probablities for both experiments
-colData$col_prob_1 <- sapply(seq(4,21),function(i) cor.test(unlist(countData[Experiment=="1",3]),unlist(countData[Experiment=="1",..i]))[[3]])
-colData$col_prob_2 <- sapply(seq(4,21),function(i) cor.test(unlist(countData[Experiment=="2",3]),unlist(countData[Experiment=="2",..i]))[[3]])
-			     
+col_prob <- data.table(
+  Sample = names(countData[,4:21]),
+  col_prob_1 = sapply(seq(4,21),function(i) {cor.test(unlist(countData[Experiment=="1",3]),unlist(countData[Experiment=="1",..i]))[[3]]}),
+  col_prob_2 = sapply(seq(4,21),function(i) {cor.test(unlist(countData[Experiment=="2",3]),unlist(countData[Experiment=="2",..i]))[[3]]})
+)
+
+colData <- col_prob[colData,on="Sample"]
+colData$Sample <- factor(colData$Sample,levels=colData$Sample)
+			    
 # subset colour based on significant correlation
 col_small <- colour[colour$Virus%in%colData[colData$col_prob_2<=0.05,Sample],]
+col_small$Virus <- droplevels(col_small$Virus)
 
 # convert dCt to 40-
 col_small$dCT <- 40-col_small$dCT
@@ -499,7 +507,13 @@ p2 <- c("italic('p')<~0.001",
 		"italic('p')<~0.001"
 )
 
-dat <- data.frame(x = rep(10, 6), y = rep(1.3, 6),Virus=colData$Sample[levels(colour$Virus)%in%colData[colData$col_prob_2<=0.05,Sample]],p1=p1,p2=p2)
+dat <- data.frame(
+	x = rep(10, 6), 
+	y = rep(1.3, 6),
+	Virus=levels(col_small$Virus),
+	p1=p1,
+	p2=p2
+)
 
 # plot
 g <- ggplot(data=col_small,aes(x=dCT,y=Log_dE,colour=Experiment))
@@ -507,7 +521,7 @@ g <- g + geom_point(size=2,na.rm = TRUE)+ scale_colour_manual(values=c("black","
 
 # make expression for greek letter axes labels
 g <- g + xlab(expression(40 - Delta*"Ct"))
-g <- g + ylab(expression(Delta*"E*"))
+g <- g + ylab(expression("Log"[10]*Delta*"E*"))
 g <- g + theme_classic_thin() %+replace% theme(panel.border = element_rect(colour = "black", fill=NA, size=0.5))
 
 # add regression lines
@@ -516,10 +530,11 @@ g <- g + stat_smooth(method="lm", se=FALSE)
 # facet the plot
 g <- g + facet_wrap(~Virus, nrow = 3,ncol=2,scales="free_y")
 
+# add p values
 g <- g + geom_text(aes(x, y, label=p1, group=NULL),data=dat,inherit.aes=F,size=2.5,parse = T) +
 geom_text(aes(x, y-0.05, label=p2, group=NULL),data=dat,inherit.aes=F,colour="orange",size=2.5,parse = T)
 
-ggsave("Figure_4.pdf",g)
+ggsave("Figure_6.pdf",g)
 
 
 ### PER CLUSTER ###
@@ -574,20 +589,20 @@ g <- g+ scale_colour_manual(values=c("black","orange"))
 
 # make expression for greek letter axes labels
 g <- g + xlab(expression(40 - Delta*"Ct"))
-g <- g + ylab(expression(Delta*"E*"))
+g <- g + ylab(expression("Log"[10]*Delta*"E*"))
 g <- g + theme_classic_thin() %+replace% theme(panel.border = element_rect(colour = "black", fill=NA, size=0.5))
 
 # add regression lines
 g <- g + stat_smooth(method="lm", se=T)
 
 # facet the plot and relabel 
-g <- g + facet_wrap(~Clusters, nrow = 3,ncol=2,scales="free_y",labeller = as_labeller(relabel))
+g <- g + facet_wrap(~Clusters, nrow = 3,ncol=2,labeller = as_labeller(relabel)) # ,scales="free_y"
 
 # 
 g <- g + geom_text(aes(x, y, label=p1, group=NULL),data=dat,inherit.aes=F,size=2.5,parse = T) +
 geom_text(aes(x, y-0.03, label=p2, group=NULL),data=dat,inherit.aes=F,colour="orange",size=2.5,parse = T)
 
-ggsave("Figure_5_V2.pdf",g)
+ggsave("Figure_5.pdf",g)
 
 summary(lm(deltaE~ORFan2+ORFan3+ORFan5+ORFan7+MBV,data=countData[Experiment=="1",]))
 summary(lm(deltaE~ORFan2+ORFan3+ORFan5+ORFan7+MBV,data=countData[Experiment=="2",]))
