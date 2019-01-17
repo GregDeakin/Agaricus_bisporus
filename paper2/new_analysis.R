@@ -3,9 +3,7 @@
 #===============================================================================
 # Test No 2
 library(data.table)
-library(plyr)
-library(dplyr)
-library(ggplot2)
+library(tidyverse)
 library(devtools)
 library(vegan)
 library(lmPerm)
@@ -18,9 +16,9 @@ library(clustertend)
 library(cluster)
 library(mixtools)
 library(ggdendro)
+library(metafuncs)
 
-
-load_all("~/pipelines/metabarcoding/scripts/myfunctions")
+#load_all("~/pipelines/metabarcoding/scripts/myfunctions")
 
 #===============================================================================
 #       Load data
