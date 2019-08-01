@@ -328,7 +328,7 @@ g1 <- plot(res,horizontal=F,comparisons = T) + theme_facet_blank(angle = 0,hjust
   xlab("Experiment:Cluster") + ylab("Marginal mean")
 
 librray(plyr)
-g1$data$pri.fac <- mapvalues(g1$data$pri.fac,from = levels(g1$data$pri.fac), to sub(" ",":",levels(g1$data$pri.fac)))
+g1$data$pri.fac <- mapvalues(g1$data$pri.fac,from = levels(g1$data$pri.fac), to = sub(" ",":",levels(g1$data$pri.fac)))
 
 
 #fviz_nbclust(t(DF), kmeans, method = "wss") +   geom_vline(xintercept = 4, linetype = 2)
