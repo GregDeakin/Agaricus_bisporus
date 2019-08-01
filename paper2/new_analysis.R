@@ -258,56 +258,77 @@ library(car)
 anova_data <- melt(countData[,c(-2,-3)])
 
 # add an experiment column to the data
-anova_data$experiment <- "E1"
+anova_data[,experiment:="E1"]
 anova_data[Sample %like% "D1"]$experiment <- "E2"
 
 # join data with metadata
-anova_data <- left_join(anova_data,colData, by=c("variable"="Sample"))
+#anova_data <- left_join(anova_data,colData, by=c("variable"="Sample"))
+anova_data <- colData[anova_data,on=c("Sample"="variable")]
 
 # rename virus column
-names(anova_data)[2] <- "virus"
+setnames(anova_data,c("Sample","i.Sample"),c("Virus","Sample"))
+#names(anova_data)[2] <- "virus"
 
 # remove rows with missing values (shouldn't be any)
-anova_data <- anova_data[complete.cases(anova_data),]
+#anova_data <- anova_data[complete.cases(anova_data),]
 
 # build linear model first and do some test
-model <- lm(value~experiment*virus,data=anova_data)
-grid.arrange(arrangeGrob(grobs=plot_lm(model),se=F))
-plot_lm(model)
+# model <- lm(value~experiment*virus,data=anova_data)
+# grid.arrange(arrangeGrob(grobs=plot_lm(model),se=F))
+# plot_lm(model)
 
 # permutation ANOVA of ordinal abundance (removes problem of unequal variance and non normality)
 
+# convert character columns to factors
+cols <- names(anova_data)[c(-7)]
+#anova_data <- as.data.table(anova_data)
+anova_data[,(cols):=lapply(.SD,factor),.SDcols=cols]
 
 # levene (or  Brown-Forsythe) test for equivelence of variance
 model <- leveneTest(value~experiment*Clusters,data=anova_data,center=median)
 
 # then post hoc tests
 
-anova_data <- anova_data %>% group_by(virus,experiment,Clusters) %>% mutate(dat.med = ifelse(value,median(value, na.rm=TRUE), ifelse(value==NA, NA)))
+# anova_data2 <- anova_data %>% group_by(virus,experiment,Clusters) %>% mutate(dat.med = ifelse(value,median(value, na.rm=TRUE), ifelse(value==NA, NA)))
+# anova_data$dat.med.res<-abs(anova_data$value-anova_data$dat.med)
 
+anova_data[,dat.med:=median(value),by=c("Virus","experiment","Clusters")]
+anova_data[,dat.med.res:=abs(value-dat.med)]
 
-anova_data$dat.med.res<-abs(anova_data$value-anova_data$dat.med)
 
 # Then we run an ANOVA, and post-hoc if necessary:
 levene.dat.aov<-aov(dat.med.res~experiment*Clusters,anova_data)
 summary(levene.dat.aov)
-TukeyHSD(levene.dat.aov)
+#TukeyHSD(levene.dat.aov)
 
 
 # run ANOVA model (unbalanced design - using type III anova (interaction is significant))
 
-library(lsmeans)
+#library(lsmeans)
 library(emmeans)
 
-options(contrasts = c("contr.sum", "contr.poly"))
+#options(contrasts = c("contr.sum", "contr.poly"))
 
-model = lm(dat.med~virus*experiment,anova_data)
+#model = lm(dat.med~virus*experiment,anova_data)
 
-Anova(model,type="III")
+#Anova(model,type="III")
 #TukeyHSD(Anova(lm(value~experiment*Cluster,anova_data),type="III"))
-lsmeans(model,pairwise~virus*experiment,adjust="Tukey")
+#lsmeans(model,pairwise~virus*experiment,adjust="Tukey")
 
-marginal = emmeans(model,~experiment*Cluster)
+res = emmeans(levene.dat.aov,~experiment*Clusters)
+
+test <- summary(pairs(emmeans(levene.dat.aov,~experiment*Clusters,type="response")))
+
+res 
+test
+#test[test$p.value<=0.1,]
+
+### supplemental figure S 345 ###
+g1 <- plot(res,horizontal=F,comparisons = T) + theme_facet_blank(angle = 0,hjust = 0.5) + 
+  xlab("Experiment:Cluster") + ylab("Marginal mean")
+
+librray(plyr)
+g1$data$pri.fac <- mapvalues(g1$data$pri.fac,from = levels(g1$data$pri.fac), to sub(" ",":",levels(g1$data$pri.fac)))
 
 
 #fviz_nbclust(t(DF), kmeans, method = "wss") +   geom_vline(xintercept = 4, linetype = 2)
